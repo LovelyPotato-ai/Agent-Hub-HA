@@ -17,14 +17,17 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 
 # ── Install Python dependencies ───────────────────────────────────────────────
-# google-re2 has NO pre-built musllinux wheel and requires C++ compilation.
-# It is pulled in by google-generativeai (old SDK).
-# langchain-google-genai 4.x uses google-genai (new SDK) which does NOT
-# require google-re2. We install langchain-google-genai with --no-deps
-# to skip google-generativeai entirely, then install google-genai directly.
+# google-re2 has NO pre-built musllinux wheel — it only exists as a source
+# distribution requiring C++ compilation (g++). It is pulled in by
+# google-generativeai (old SDK). We avoid it by:
 #
-# crewai is installed with --no-deps to avoid chromadb/lancedb (Rust builds).
-
+# 1. Installing langchain-google-genai with --no-deps (skips google-generativeai)
+# 2. Installing google-genai directly (new SDK, no google-re2 dependency)
+# 3. Installing crewai with --no-deps (avoids chromadb/lancedb Rust builds)
+# 4. Installing all remaining deps from requirements.txt
+#
+# CACHE_BUST: v4 — forces rebuild of this layer
+ARG CACHE_BUST=v4
 RUN pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         --no-deps \
