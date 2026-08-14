@@ -1,0 +1,14 @@
+---
+# =============================================================================
+# repository.yaml — HA Add-on Repository Manifest
+# =============================================================================
+# This file tells Home Assistant that this GitHub repository is an add-on
+# repository and lists the add-ons it contains.
+#
+# HA reads this file when you add the repository URL in:
+#   Settings → Add-ons → Add-on Store → ⋮ → Repositories
+# =============================================================================
+
+name: "AI Hub"
+url: "https://github.com/LovelyPotato-ai/Agent-Hub-HA"
+maintainer: "LovelyPotato-ai"
