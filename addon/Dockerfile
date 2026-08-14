@@ -30,13 +30,20 @@ COPY requirements.txt /app/requirements.txt
 # Use HA's pre-built wheel index for fast ARM64 installs.
 # Install crewai with --no-deps first to avoid chromadb/lancedb (ARM64 build failures).
 # Then install crewai's actual runtime deps manually.
+# Install crewai and langchain-google-genai with --no-deps to avoid
+# google-re2 (source-only on musllinux/ARM64, requires C++ build).
+# All other packages install normally from the HA wheel index.
 RUN pip install --no-cache-dir \
     --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
     --no-deps \
     "crewai==1.15.16" \
+    "langchain-google-genai>=2.0.0" \
     && pip install --no-cache-dir \
     --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-    -r /app/requirements.txt
+    -r /app/requirements.txt \
+    && pip install --no-cache-dir \
+    --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+    "google-genai>=1.0.0"
 
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY app/ /app/

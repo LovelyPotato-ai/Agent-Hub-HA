@@ -39,14 +39,18 @@ litellm>=1.0.0
 instructor>=1.0.0
 
 # ── LangChain provider wrappers ───────────────────────────────────────────────
+# langchain-google-genai is installed with --no-deps in Dockerfile to avoid
+# google-re2 (source-only on musllinux/ARM64). google-genai is installed
+# separately as its actual runtime dependency.
 langchain-openai>=0.2.0
-langchain-google-genai>=2.0.0
 langchain-anthropic>=0.3.0
 langchain-community>=0.3.0
 
 # ── Underlying LLM provider SDKs ─────────────────────────────────────────────
 openai>=1.50.0
-google-generativeai>=0.8.0
+# google-generativeai is excluded — it pulls google-re2 which requires C++ build
+# tools not available in the Alpine container. langchain-google-genai works
+# without it by using google-genai directly (already pulled as a dependency).
 anthropic>=0.40.0
 
 # ── GitHub integration ────────────────────────────────────────────────────────
