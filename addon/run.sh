@@ -1,8 +1,8 @@
-#!/usr/bin/with-contenv bashio
+#!/usr/bin/env bashio
 # =============================================================================
 # run.sh — AI Hub Add-on Entrypoint
 # =============================================================================
-# This script is executed by s6-overlay (the HA add-on process supervisor).
+# This script is executed by the HA add-on runtime as the main process.
 # It reads the add-on options from /data/options.json (written by the
 # Supervisor from the add-on Configuration tab), exports them as environment
 # variables, then starts the Python server.
@@ -30,18 +30,15 @@ export AI_HUB_LOG_LEVEL="$(bashio::config 'log_level')"
 
 # ── HA Supervisor connection ───────────────────────────────────────────────────
 # SUPERVISOR_TOKEN is injected automatically by the Supervisor into every add-on.
-# The server uses it to authenticate with the HA REST API.
-if [ -z "${SUPERVISOR_TOKEN}" ]; then
-    bashio::exit.nok "SUPERVISOR_TOKEN is not set. Is hassio_api enabled in config.yaml?"
+if [ -z "${SUPERVISOR_TOKEN:-}" ]; then
+    bashio::log.warning "SUPERVISOR_TOKEN is not set — HA entity updates will be disabled."
 fi
-export AI_HUB_SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
+export AI_HUB_SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN:-}"
 
 # ── Server port ───────────────────────────────────────────────────────────────
-# Must match ingress_port in config.yaml
 export AI_HUB_PORT="8099"
 
 # ── Data directory ────────────────────────────────────────────────────────────
-# /data persists across add-on restarts (used by settings_manager.py)
 export AI_HUB_DATA_DIR="/data"
 
 bashio::log.info "LLM provider: ${AI_HUB_LLM_PROVIDER}, model: ${AI_HUB_LLM_MODEL}"
