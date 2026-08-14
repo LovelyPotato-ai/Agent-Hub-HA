@@ -11,12 +11,16 @@ FROM ${BUILD_FROM}
 
 # ── System dependencies ───────────────────────────────────────────────────────
 # git: required by some pip packages during install
-# libffi-dev, musl-dev: needed for cryptography wheels on Alpine
+# g++, gcc, libffi-dev, musl-dev: needed for native extension builds on Alpine
+# re2-dev: provides the C++ re2 library needed by google-re2
 RUN apk add --no-cache \
     git \
+    gcc \
+    g++ \
     libffi-dev \
     musl-dev \
-    gcc
+    re2-dev \
+    make
 
 # ── Copy requirements first (layer cache optimisation) ────────────────────────
 WORKDIR /app
