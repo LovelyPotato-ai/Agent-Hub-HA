@@ -1,0 +1,61 @@
+---
+name: "AI Hub"
+version: "1.0.0"
+slug: "ai_hub"
+description: "Multi-agent AI orchestrator powered by CrewAI. Supports OpenAI, Gemini, Anthropic, and OpenRouter. Includes a React dashboard served via HA Ingress."
+url: "https://github.com/YOUR_USERNAME/YOUR_REPO"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+
+# ── Ingress (serves the React frontend via HA sidebar) ────────────────────────
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:robot
+panel_title: "AI Hub"
+
+# ── Ports (also exposed directly for local network access) ────────────────────
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: "AI Hub web UI and REST API"
+
+# ── Supervisor API access ─────────────────────────────────────────────────────
+# Required to read/write HA entity states and fire events
+hassio_api: true
+homeassistant_api: true
+auth_api: true
+
+# ── Filesystem ────────────────────────────────────────────────────────────────
+# /data  — persistent add-on storage (survives restarts, stores options + logs)
+# /config — read-only access to HA config directory (for reading secrets.yaml)
+map:
+  - config:rw
+
+# ── Add-on options (shown in the Configuration tab) ──────────────────────────
+options:
+  active_llm_provider: "openai"
+  active_llm_model: "gpt-4o"
+  openai_api_key: ""
+  gemini_api_key: ""
+  anthropic_api_key: ""
+  openrouter_api_key: ""
+  github_pat: ""
+  github_repo_owner: ""
+  github_repo_name: ""
+  github_branch: "main"
+  log_level: "info"
+
+schema:
+  active_llm_provider: "str"
+  active_llm_model: "str"
+  openai_api_key: "str"
+  gemini_api_key: "str"
+  anthropic_api_key: "str"
+  openrouter_api_key: "str"
+  github_pat: "str"
+  github_repo_owner: "str"
+  github_repo_name: "str"
+  github_branch: "str"
+  log_level: "list(trace|debug|info|warning|error|fatal)"

@@ -19,39 +19,20 @@ appdaemon:
 
   # Python packages installed at add-on startup via pip.
   # These are injected into the AppDaemon container's venv.
-  python_packages:
-    # ── CrewAI core ──────────────────────────────────────────────────────────
-    - crewai>=0.80.0
-    - crewai-tools>=0.14.0
-
-    # ── LangChain provider wrappers ──────────────────────────────────────────
-    - langchain-openai>=0.2.0        # OpenAI + OpenRouter (same client, diff base_url)
-    - langchain-google-genai>=2.0.0  # Google Gemini
-    - langchain-anthropic>=0.3.0     # Anthropic Claude
-    - langchain-community>=0.3.0     # Shared utilities
-
-    # ── Underlying provider SDKs (pinned for stability) ──────────────────────
-    - openai>=1.50.0
-    - google-generativeai>=0.8.0
-    - anthropic>=0.40.0
-
-    # ── GitHub integration ───────────────────────────────────────────────────
-    - github3.py>=4.0.0
-
-    # ── HTTP / async ─────────────────────────────────────────────────────────
-    - aiohttp>=3.10.0
-    - aiofiles>=24.1.0
-
-    # ── Data validation ──────────────────────────────────────────────────────
-    - pydantic>=2.9.0
+  python_packages: []
+  # NOTE: Python packages are installed via init_commands below using pip
+  # with --no-deps for crewai to avoid chromadb (which fails on ARM64/musl).
+  # See init_commands section below.
 
   # HA plugin — connects AppDaemon to the HA event bus and state machine
   plugins:
     HASS:
       type: hass
-      ha_url: http://homeassistant.local:8123
-      # Long-lived access token — stored in secrets.yaml, NOT here
-      token: !secret appdaemon_token
+      # Use your HA Green's IP address (not homeassistant.local — mDNS can fail inside the container)
+      ha_url: http://192.168.1.14:8123
+      # Paste your HA Long-Lived Access Token here directly.
+      # Generate one at: HA Profile → Long-Lived Access Tokens → Create Token
+      token: "PASTE_YOUR_HA_LONG_LIVED_TOKEN_HERE"
       # Retry connection on HA restart
       retry_secs: 5
 
@@ -60,8 +41,9 @@ appdaemon:
 # =============================================================================
 http:
   url: http://0.0.0.0:5050
-  # API token for frontend authentication — stored in secrets.yaml
-  password: !secret appdaemon_api_password
+  # Password protecting the AppDaemon HTTP API (used by the React frontend).
+  # Choose any strong string — this is NOT an HA token.
+  password: "CHOOSE_A_STRONG_API_PASSWORD"
   # Allow the HA Ingress proxy to reach this server
   allow_ip:
     - 127.0.0.1
