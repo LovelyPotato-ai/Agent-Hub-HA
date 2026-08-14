@@ -26,13 +26,14 @@ COPY requirements.txt /app/requirements.txt
 # 3. Installing crewai with --no-deps (avoids chromadb/lancedb Rust builds)
 # 4. Installing all remaining deps from requirements.txt
 #
-# CACHE_BUST: v4 — forces rebuild of this layer
-ARG CACHE_BUST=v4
+# CACHE_BUST: v5 — forces rebuild of this layer
+ARG CACHE_BUST=v5
 RUN pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         --no-deps \
         "crewai==1.15.16" \
         "langchain-google-genai>=4.0.0" \
+        "cel-python>=0.5.0,<0.6" \
     && pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         "google-genai>=1.0.0" \

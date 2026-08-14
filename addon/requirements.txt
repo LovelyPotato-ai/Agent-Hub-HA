@@ -22,7 +22,9 @@ crewai-core==1.15.16
 aiofiles~=24.1.0
 aiosqlite~=0.21.0
 appdirs~=1.4.4
-cel-python>=0.5.0,<0.6
+# cel-python is installed with --no-deps in Dockerfile to avoid google-re2
+# (cel-python requires google-re2 as a hard dependency, but we don't use
+# CEL evaluation features in our crews)
 crewai-cli==1.15.16
 json-repair~=0.60.1
 json5~=0.10.0
