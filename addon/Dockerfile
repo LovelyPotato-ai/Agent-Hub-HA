@@ -15,29 +15,24 @@ RUN apk add --no-cache git libffi-dev musl-dev gcc
 # ── Copy requirements first (layer cache optimisation) ────────────────────────
 WORKDIR /app
 COPY requirements.txt /app/requirements.txt
-COPY constraints.txt /app/constraints.txt
 
 # ── Install Python dependencies ───────────────────────────────────────────────
-# Strategy to avoid google-re2 (no pre-built musllinux wheel, requires C++):
+# google-re2 has NO pre-built musllinux wheel and requires C++ compilation.
+# It is pulled in by google-generativeai (old SDK).
+# langchain-google-genai 4.x uses google-genai (new SDK) which does NOT
+# require google-re2. We install langchain-google-genai with --no-deps
+# to skip google-generativeai entirely, then install google-genai directly.
 #
-# Step 1: Pre-install google-re2 from the HA wheel index BEFORE anything else.
-#         The HA wheel index has a pre-built musllinux aarch64 wheel for it.
-#         By installing it first, pip won't try to build it from source later.
-#
-# Step 2: Install crewai with --no-deps to avoid chromadb/lancedb
-#         (which also have no pre-built ARM64 wheels and require Rust).
-#
-# Step 3: Install all remaining dependencies from requirements.txt.
-#         google-re2 is already satisfied from step 1, so pip skips it.
+# crewai is installed with --no-deps to avoid chromadb/lancedb (Rust builds).
 
 RUN pip install --no-cache-dir \
-        --index-url https://wheels.home-assistant.io/musllinux-index/ \
-        --extra-index-url https://pypi.org/simple/ \
-        "google-re2" \
-    && pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         --no-deps \
         "crewai==1.15.16" \
+        "langchain-google-genai>=4.0.0" \
+    && pip install --no-cache-dir \
+        --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+        "google-genai>=1.0.0" \
     && pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         -r /app/requirements.txt
