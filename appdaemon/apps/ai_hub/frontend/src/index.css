@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-ha-bg text-ha-text;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-ha-surface;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ha-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ha-muted;
+  }
+}
+
+@layer components {
+  /* Reusable card surface */
+  .card {
+    @apply bg-ha-surface border border-ha-border rounded-xl p-4;
+  }
+
+  /* Code block styling for markdown output */
+  .prose-ha pre {
+    @apply bg-gray-900 border border-ha-border rounded-lg p-4 overflow-x-auto font-mono text-sm;
+  }
+  .prose-ha code {
+    @apply font-mono text-ha-blue text-sm;
+  }
+  .prose-ha p {
+    @apply text-ha-text leading-relaxed mb-3;
+  }
+  .prose-ha h1, .prose-ha h2, .prose-ha h3 {
+    @apply text-ha-text font-semibold mb-2 mt-4;
+  }
+  .prose-ha ul, .prose-ha ol {
+    @apply pl-5 mb-3 space-y-1;
+  }
+  .prose-ha li {
+    @apply text-ha-text;
+  }
+  .prose-ha strong {
+    @apply text-white font-semibold;
+  }
+}

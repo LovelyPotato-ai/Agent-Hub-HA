@@ -1,0 +1,98 @@
+# =============================================================================
+# Home Assistant Automations — AI Hub
+# =============================================================================
+# Add these to your /config/automations.yaml or include this file.
+# These wire the input_button helpers to the ai_hub_trigger event so you can
+# trigger crews from the HA dashboard without the React frontend.
+#
+# The 'prompt' field in the event data can be customised per automation or
+# driven by an input_text helper for a fully dynamic dashboard experience.
+# =============================================================================
+
+- id: "ai_hub_trigger_code_review"
+  alias: "AI Hub — Trigger Code Review Crew"
+  description: >
+    Fires the ai_hub_trigger event when the Code Review button is pressed.
+    Edit the prompt field or replace it with an input_text entity state.
+  trigger:
+    - platform: state
+      entity_id: input_button.trigger_ai_hub_code_review
+  action:
+    - event: ai_hub_trigger
+      event_data:
+        crew: "code_review"
+        prompt: "Write a Python utility function that validates Home Assistant entity IDs."
+        options: {}
+  mode: single
+
+- id: "ai_hub_trigger_ha_automation"
+  alias: "AI Hub — Trigger HA Automation Crew"
+  description: >
+    Fires the ai_hub_trigger event when the HA Automation button is pressed.
+  trigger:
+    - platform: state
+      entity_id: input_button.trigger_ai_hub_ha_automation
+  action:
+    - event: ai_hub_trigger
+      event_data:
+        crew: "ha_automation"
+        prompt: "Create a Home Assistant automation that turns off all lights when everyone leaves home."
+        options:
+          entities_to_read:
+            - "person.john"
+            - "light.living_room"
+  mode: single
+
+- id: "ai_hub_trigger_ha_assistant"
+  alias: "AI Hub — Trigger HA Assistant Crew"
+  description: >
+    Fires the ai_hub_trigger event when the HA Assistant button is pressed.
+  trigger:
+    - platform: state
+      entity_id: input_button.trigger_ai_hub_ha_assistant
+  action:
+    - event: ai_hub_trigger
+      event_data:
+        crew: "ha_assistant"
+        prompt: "Analyse the current sensor states and suggest energy-saving automations."
+        options:
+          entities_to_survey:
+            - "sensor.living_room_temperature"
+            - "sensor.living_room_humidity"
+            - "binary_sensor.motion_living_room"
+            - "switch.living_room_ac"
+  mode: single
+
+- id: "ai_hub_notify_on_done"
+  alias: "AI Hub — Notify when crew finishes"
+  description: >
+    Sends a persistent HA notification when the AI Hub status changes to 'done'.
+  trigger:
+    - platform: state
+      entity_id: input_text.ai_hub_status
+      to: "done"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "AI Hub — Crew Finished"
+        message: >
+          Crew '{{ states('input_text.ai_hub_active_crew') }}' completed.
+          Result preview: {{ states('input_text.ai_hub_result') }}
+        notification_id: "ai_hub_result"
+  mode: single
+
+- id: "ai_hub_notify_on_error"
+  alias: "AI Hub — Notify on error"
+  description: >
+    Sends a persistent HA notification when the AI Hub encounters an error.
+  trigger:
+    - platform: state
+      entity_id: input_text.ai_hub_status
+      to: "error"
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "AI Hub — Error"
+        message: "{{ states('input_text.ai_hub_error') }}"
+        notification_id: "ai_hub_error"
+  mode: single

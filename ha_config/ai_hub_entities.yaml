@@ -1,0 +1,63 @@
+# =============================================================================
+# Home Assistant Helper Entities — AI Hub
+# =============================================================================
+# Add these to your /config/configuration.yaml using the include pattern:
+#
+#   input_text:    !include ai_hub_entities.yaml#input_text
+#   input_button:  !include ai_hub_entities.yaml#input_button
+#
+# OR copy the relevant sections directly into your configuration.yaml.
+#
+# After adding, restart Home Assistant to create the entities.
+# =============================================================================
+
+# ── input_text entities ───────────────────────────────────────────────────────
+# These are written to by the AIHubOrchestrator AppDaemon app.
+# Any HA automation can trigger on state changes of these entities.
+
+input_text:
+  ai_hub_status:
+    name: "AI Hub Status"
+    icon: mdi:robot-outline
+    # Possible values: idle | running | done | error
+    initial: "idle"
+    max: 50
+
+  ai_hub_result:
+    name: "AI Hub Result"
+    icon: mdi:text-box-check-outline
+    # Stores the last crew output (truncated to 255 chars for the entity;
+    # full result is delivered via WebSocket to the frontend)
+    initial: ""
+    max: 255
+
+  ai_hub_active_crew:
+    name: "AI Hub Active Crew"
+    icon: mdi:account-group-outline
+    # Reflects which crew is currently running: code_review | ha_automation | ha_assistant
+    initial: ""
+    max: 50
+
+  ai_hub_error:
+    name: "AI Hub Last Error"
+    icon: mdi:alert-circle-outline
+    initial: ""
+    max: 255
+
+# ── input_button entities ─────────────────────────────────────────────────────
+# Optional: use these in the HA dashboard to manually trigger crews.
+# The AppDaemon app listens for the 'ai_hub_trigger' EVENT, not these buttons
+# directly — wire them up via an HA automation (see ha_config/automations.yaml).
+
+input_button:
+  trigger_ai_hub_code_review:
+    name: "Trigger Code Review Crew"
+    icon: mdi:code-braces
+
+  trigger_ai_hub_ha_automation:
+    name: "Trigger HA Automation Crew"
+    icon: mdi:home-automation
+
+  trigger_ai_hub_ha_assistant:
+    name: "Trigger HA Assistant Crew"
+    icon: mdi:home-assistant

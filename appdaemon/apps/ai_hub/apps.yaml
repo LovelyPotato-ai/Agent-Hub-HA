@@ -1,0 +1,49 @@
+---
+# =============================================================================
+# AppDaemon App Registration — AI Hub Orchestrator
+# Deploy to: /config/appdaemon/apps/ai_hub/apps.yaml
+# =============================================================================
+
+ai_hub_orchestrator:
+  module: main
+  class: AIHubOrchestrator
+
+  # ── Trigger / result HA entities ──────────────────────────────────────────
+  # Fire the event 'ai_hub_trigger' from HA automations, scripts, or the
+  # frontend to start a crew. The result and status are written back to these
+  # input_text entities so any HA automation can react to them.
+  trigger_event: "ai_hub_trigger"
+  result_entity: "input_text.ai_hub_result"
+  status_entity: "input_text.ai_hub_status"
+
+  # ── LLM provider selection ────────────────────────────────────────────────
+  # Change active_llm_provider + active_llm_model in secrets.yaml to switch
+  # providers without touching any Python code. Restart the add-on to apply.
+  #
+  # Supported providers:  openai | gemini | anthropic | openrouter
+  # Example models:
+  #   openai      → gpt-4o, gpt-4.1, gpt-4o-mini
+  #   gemini      → gemini-2.5-pro, gemini-2.0-flash
+  #   anthropic   → claude-sonnet-4-5, claude-opus-4
+  #   openrouter  → any model slug from openrouter.ai/models
+  active_llm_provider: !secret active_llm_provider
+  active_llm_model: !secret active_llm_model
+
+  # ── LLM API keys (all four — only the active one is used at runtime) ──────
+  openai_api_key: !secret openai_api_key
+  gemini_api_key: !secret gemini_api_key
+  anthropic_api_key: !secret anthropic_api_key
+  openrouter_api_key: !secret openrouter_api_key
+
+  # ── GitHub integration ────────────────────────────────────────────────────
+  github_pat: !secret github_pat
+  github_repo_owner: !secret github_repo_owner
+  github_repo_name: !secret github_repo_name
+  # Branch to commit to (default: main)
+  github_branch: "main"
+
+  # ── AppDaemon API password (used by the frontend) ─────────────────────────
+  appdaemon_api_password: !secret appdaemon_api_password
+
+  # ── Logging ───────────────────────────────────────────────────────────────
+  log: ai_hub_log

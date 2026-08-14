@@ -1,0 +1,86 @@
+---
+# =============================================================================
+# AppDaemon Configuration — AI Hub
+# Deploy to: /config/appdaemon/appdaemon.yaml on your HA Green device
+# =============================================================================
+
+appdaemon:
+  # Thread pool size — allows concurrent crew executions without blocking the
+  # AppDaemon event loop. Each crew.kickoff() runs in its own thread.
+  threads: 10
+
+  # Time zone must match your HA instance
+  time_zone: Europe/Budapest
+
+  # Latitude/longitude for sun-based calculations (optional but good practice)
+  latitude: 47.4979
+  longitude: 19.0402
+  elevation: 102
+
+  # Python packages installed at add-on startup via pip.
+  # These are injected into the AppDaemon container's venv.
+  python_packages:
+    # ── CrewAI core ──────────────────────────────────────────────────────────
+    - crewai>=0.80.0
+    - crewai-tools>=0.14.0
+
+    # ── LangChain provider wrappers ──────────────────────────────────────────
+    - langchain-openai>=0.2.0        # OpenAI + OpenRouter (same client, diff base_url)
+    - langchain-google-genai>=2.0.0  # Google Gemini
+    - langchain-anthropic>=0.3.0     # Anthropic Claude
+    - langchain-community>=0.3.0     # Shared utilities
+
+    # ── Underlying provider SDKs (pinned for stability) ──────────────────────
+    - openai>=1.50.0
+    - google-generativeai>=0.8.0
+    - anthropic>=0.40.0
+
+    # ── GitHub integration ───────────────────────────────────────────────────
+    - github3.py>=4.0.0
+
+    # ── HTTP / async ─────────────────────────────────────────────────────────
+    - aiohttp>=3.10.0
+    - aiofiles>=24.1.0
+
+    # ── Data validation ──────────────────────────────────────────────────────
+    - pydantic>=2.9.0
+
+  # HA plugin — connects AppDaemon to the HA event bus and state machine
+  plugins:
+    HASS:
+      type: hass
+      ha_url: http://homeassistant.local:8123
+      # Long-lived access token — stored in secrets.yaml, NOT here
+      token: !secret appdaemon_token
+      # Retry connection on HA restart
+      retry_secs: 5
+
+# =============================================================================
+# HTTP server — exposes the aiohttp REST API and serves the React frontend
+# =============================================================================
+http:
+  url: http://0.0.0.0:5050
+  # API token for frontend authentication — stored in secrets.yaml
+  password: !secret appdaemon_api_password
+  # Allow the HA Ingress proxy to reach this server
+  allow_ip:
+    - 127.0.0.1
+    - 172.30.32.0/23   # HA add-on internal network range
+
+# =============================================================================
+# Logging
+# =============================================================================
+logs:
+  main_log:
+    filename: /config/appdaemon/logs/appdaemon.log
+    log_generations: 3
+    log_size: 1000000
+  error_log:
+    filename: /config/appdaemon/logs/error.log
+    log_generations: 3
+    log_size: 500000
+  ai_hub_log:
+    name: ai_hub
+    filename: /config/appdaemon/logs/ai_hub.log
+    log_generations: 5
+    log_size: 2000000
