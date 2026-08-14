@@ -50,7 +50,7 @@ LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.0.0"
+    io.hass.version="1.0.1"
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
 CMD ["/run.sh"]
