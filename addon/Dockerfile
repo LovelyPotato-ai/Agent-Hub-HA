@@ -10,40 +10,37 @@ ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 # ── System dependencies ───────────────────────────────────────────────────────
-# git: required by some pip packages during install
-# g++, gcc, libffi-dev, musl-dev: needed for native extension builds on Alpine
-# re2-dev: provides the C++ re2 library needed by google-re2
-RUN apk add --no-cache \
-    git \
-    gcc \
-    g++ \
-    libffi-dev \
-    musl-dev \
-    re2-dev \
-    make
+RUN apk add --no-cache git libffi-dev musl-dev gcc
 
 # ── Copy requirements first (layer cache optimisation) ────────────────────────
 WORKDIR /app
 COPY requirements.txt /app/requirements.txt
+COPY constraints.txt /app/constraints.txt
 
 # ── Install Python dependencies ───────────────────────────────────────────────
-# Use HA's pre-built wheel index for fast ARM64 installs.
-# Install crewai with --no-deps first to avoid chromadb/lancedb (ARM64 build failures).
-# Then install crewai's actual runtime deps manually.
-# Install crewai and langchain-google-genai with --no-deps to avoid
-# google-re2 (source-only on musllinux/ARM64, requires C++ build).
-# All other packages install normally from the HA wheel index.
+# Strategy to avoid google-re2 (no pre-built musllinux wheel, requires C++):
+#
+# Step 1: Pre-install google-re2 from the HA wheel index BEFORE anything else.
+#         The HA wheel index has a pre-built musllinux aarch64 wheel for it.
+#         By installing it first, pip won't try to build it from source later.
+#
+# Step 2: Install crewai with --no-deps to avoid chromadb/lancedb
+#         (which also have no pre-built ARM64 wheels and require Rust).
+#
+# Step 3: Install all remaining dependencies from requirements.txt.
+#         google-re2 is already satisfied from step 1, so pip skips it.
+
 RUN pip install --no-cache-dir \
-    --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-    --no-deps \
-    "crewai==1.15.16" \
-    "langchain-google-genai>=2.0.0" \
+        --index-url https://wheels.home-assistant.io/musllinux-index/ \
+        --extra-index-url https://pypi.org/simple/ \
+        "google-re2" \
     && pip install --no-cache-dir \
-    --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-    -r /app/requirements.txt \
+        --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+        --no-deps \
+        "crewai==1.15.16" \
     && pip install --no-cache-dir \
-    --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-    "google-genai>=1.0.0"
+        --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+        -r /app/requirements.txt
 
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY app/ /app/
@@ -54,7 +51,6 @@ RUN chmod +x /run.sh
 LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
-    io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="addon" \
     io.hass.version="1.0.0"
 

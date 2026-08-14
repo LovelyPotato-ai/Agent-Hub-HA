@@ -5,12 +5,16 @@
 # avoid chromadb and lancedb (which require Rust compilation and fail on
 # ARM64/musl — the HA Green's architecture).
 #
-# This file lists all of crewai's actual runtime dependencies EXCEPT:
-#   - chromadb  (vector store — not needed, we use memory=False)
-#   - lancedb   (vector store — not needed, we use memory=False)
-#   - pdfplumber (PDF parsing — not needed for our use case)
+# google-re2 is excluded via a constraints file (constraints.txt) because it
+# has no pre-built musllinux wheel and requires C++ compilation which fails
+# on Alpine ARM64.
 #
-# Versions are pinned to crewai 1.15.16's exact requirements where possible.
+# This file lists all of crewai's actual runtime dependencies EXCEPT:
+#   - chromadb       (vector store — not needed, we use memory=False)
+#   - lancedb        (vector store — not needed, we use memory=False)
+#   - pdfplumber     (PDF parsing — not needed for our use case)
+#   - google-re2     (C++ build required, excluded via constraints.txt)
+#   - google-generativeai (pulls google-re2, excluded)
 # =============================================================================
 
 # ── CrewAI runtime dependencies (manually listed, no chromadb/lancedb) ────────

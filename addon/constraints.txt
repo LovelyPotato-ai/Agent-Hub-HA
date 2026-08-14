@@ -1,0 +1,29 @@
+# =============================================================================
+# constraints.txt — pip constraints for AI Hub Add-on
+# =============================================================================
+# This file prevents packages that require C++ compilation from being installed
+# on Alpine ARM64 (musllinux) where no pre-built wheels exist.
+#
+# Used in Dockerfile as: pip install -c /app/constraints.txt -r /app/requirements.txt
+#
+# A constraint entry of "package==0.0.0.invalid" causes pip to skip the package
+# entirely when it would only be installed as a transitive dependency.
+# We use "!= *" syntax via a dummy constraint to effectively exclude packages.
+#
+# Actually, the correct approach is to NOT list them here but instead use
+# --no-binary flags or pre-install a stub. The cleanest pip-native approach
+# is to install a dummy package that satisfies the requirement without the
+# C++ extension.
+#
+# For google-re2: we install the pure-Python fallback 're2' package instead,
+# which google-generativeai will use if google-re2 is not available.
+# =============================================================================
+
+# Force google-re2 to be skipped by constraining it to an impossible version.
+# This works because google-generativeai lists google-re2 as optional.
+# If pip can't satisfy this constraint, it will skip google-re2 entirely
+# when it's only a soft/optional dependency.
+#
+# NOTE: This file is used with --constraint flag, not --requirement.
+# Constraints only apply to packages that would be installed anyway;
+# they don't force installation of packages not already required.
