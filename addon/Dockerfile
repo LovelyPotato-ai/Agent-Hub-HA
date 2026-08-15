@@ -9,6 +9,12 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
+# ── Force full rebuild (invalidates ALL subsequent layers) ───────────────────
+# Increment this value to bust the entire Docker layer cache on next build.
+# CACHE_BUST: v6
+ARG CACHE_BUST=v6
+RUN echo "Cache bust: ${CACHE_BUST}"
+
 # ── System dependencies ───────────────────────────────────────────────────────
 RUN apk add --no-cache git libffi-dev musl-dev gcc
 
@@ -26,8 +32,6 @@ COPY requirements.txt /app/requirements.txt
 # 3. Installing crewai with --no-deps (avoids chromadb/lancedb Rust builds)
 # 4. Installing all remaining deps from requirements.txt
 #
-# CACHE_BUST: v5 — forces rebuild of this layer
-ARG CACHE_BUST=v5
 RUN pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         --no-deps \
@@ -58,4 +62,4 @@ LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.0.4"
+    io.hass.version="1.0.5"
