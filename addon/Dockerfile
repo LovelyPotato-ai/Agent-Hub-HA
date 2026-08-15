@@ -11,8 +11,8 @@ FROM ${BUILD_FROM}
 
 # ── Force full rebuild (invalidates ALL subsequent layers) ───────────────────
 # Increment this value to bust the entire Docker layer cache on next build.
-# CACHE_BUST: v11
-ARG CACHE_BUST=v11
+# CACHE_BUST: v13
+ARG CACHE_BUST=v13
 RUN echo "Cache bust: ${CACHE_BUST}"
 
 # ── System dependencies ───────────────────────────────────────────────────────
@@ -60,22 +60,16 @@ RUN cd /app/frontend \
     && npm run build \
     && rm -rf node_modules
 
-# ── Install run.sh as an s6-overlay v3 service ───────────────────────────────
-# HA base images use s6-overlay v3. The v3 service directory structure is:
-#   /etc/s6-overlay/s6-rc.d/<name>/type       — contains "longrun"
-#   /etc/s6-overlay/s6-rc.d/<name>/run        — the service script
-#   /etc/s6-overlay/s6-rc.d/user/contents.d/<name> — enables the service
-# The old v2 path /etc/services.d/ does NOT work with v3.
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/ai_hub \
-    && echo "longrun" > /etc/s6-overlay/s6-rc.d/ai_hub/type \
-    && mkdir -p /etc/s6-overlay/s6-rc.d/user/contents.d \
-    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/ai_hub
-COPY run.sh /etc/s6-overlay/s6-rc.d/ai_hub/run
-RUN chmod a+x /etc/s6-overlay/s6-rc.d/ai_hub/run
+# ── Install run.sh as an s6-overlay service ──────────────────────────────────
+# HA base images include a compatibility shim that maps /etc/services.d/ to
+# s6-rc v3 bundles. This is the path used by ALL official HA add-ons.
+RUN mkdir -p /etc/services.d/ai_hub
+COPY run.sh /etc/services.d/ai_hub/run
+RUN chmod a+x /etc/services.d/ai_hub/run
 
 # ── Labels ────────────────────────────────────────────────────────────────────
 LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.1.1"
+    io.hass.version="1.1.3"
