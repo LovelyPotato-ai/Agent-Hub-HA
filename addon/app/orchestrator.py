@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 
+import aiohttp
 from aiohttp import web
 
 from crew_router import route as route_crew
@@ -389,7 +390,7 @@ class AIHubOrchestrator:
 
         try:
             async for msg in ws:
-                if msg.type == web.WSMsgType.ERROR:
+                if msg.type == aiohttp.WSMsgType.ERROR:
                     break
         finally:
             self._ws_clients.get(job_id, set()).discard(ws)

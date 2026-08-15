@@ -52,11 +52,22 @@ FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
 # Application factory
 # ---------------------------------------------------------------------------
 
+@web.middleware
+async def _cors_middleware(request: web.Request, handler):
+    """Allow all origins — needed for local dev (npm run dev proxy)."""
+    response = await handler(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
+
 def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
     """
     Build the aiohttp Application with all routes registered.
     """
-    app = web.Application()
+    # Middlewares must be passed at construction time — cannot be appended after.
+    app = web.Application(middlewares=[_cors_middleware])
 
     # ── API routes ─────────────────────────────────────────────────────
     app.router.add_post("/api/trigger",          orchestrator.http_trigger)
@@ -84,19 +95,6 @@ def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
             "Run 'npm run build' in the frontend/ directory and copy dist/ here.",
             FRONTEND_DIST,
         )
-
-    # ── CORS for local development ─────────────────────────────────────
-    # In production (served via HA Ingress) CORS is not needed.
-    # During development (npm run dev proxy), allow all origins.
-    @web.middleware
-    async def cors_middleware(request: web.Request, handler):
-        response = await handler(request)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        return response
-
-    app.middlewares.append(cors_middleware)
 
     return app
 
@@ -131,8 +129,9 @@ async def main() -> None:
     port = int(os.environ.get("AI_HUB_PORT", "8099"))
 
     # ── Connect to HA ──────────────────────────────────────────────────
-    ha_client = HAClient()
+    ha_client = None
     try:
+        ha_client = HAClient()
         await ha_client.connect()
     except Exception as exc:
         logger.error("Failed to connect to HA Supervisor: %s", exc)

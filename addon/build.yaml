@@ -16,5 +16,5 @@ squash: false
 labels:
   org.opencontainers.image.title: "AI Hub"
   org.opencontainers.image.description: "Multi-agent AI orchestrator powered by CrewAI"
-  org.opencontainers.image.source: "https://github.com/YOUR_USERNAME/YOUR_REPO"
+  org.opencontainers.image.source: "https://github.com/LovelyPotato-ai/Agent-Hub-HA"
   org.opencontainers.image.licenses: "MIT"

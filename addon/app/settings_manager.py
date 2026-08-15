@@ -167,12 +167,11 @@ def load_settings() -> dict[str, Any]:
         "github_repo_name":    options.get("github_repo_name", ""),
         "agent_overrides":     options.get("agent_overrides", {}),
         "keys_configured": {
-            "openai":          _key_is_configured(options.get("openai_api_key", "")),
-            "gemini":          _key_is_configured(options.get("gemini_api_key", "")),
-            "anthropic":       _key_is_configured(options.get("anthropic_api_key", "")),
-            "openrouter":      _key_is_configured(options.get("openrouter_api_key", "")),
-            "github_pat":      _key_is_configured(options.get("github_pat", "")),
-            "appdaemon_token": False,  # Not applicable in add-on mode
+            "openai":     _key_is_configured(options.get("openai_api_key", "")),
+            "gemini":     _key_is_configured(options.get("gemini_api_key", "")),
+            "anthropic":  _key_is_configured(options.get("anthropic_api_key", "")),
+            "openrouter": _key_is_configured(options.get("openrouter_api_key", "")),
+            "github_pat": _key_is_configured(options.get("github_pat", "")),
         },
     }
 

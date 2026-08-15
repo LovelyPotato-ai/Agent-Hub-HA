@@ -1,6 +1,6 @@
 ---
 name: "AI Hub"
-version: "1.0.5"
+version: "1.1.0"
 slug: "ai_hub"
 description: "Multi-agent AI orchestrator powered by CrewAI. Supports OpenAI, Gemini, Anthropic, and OpenRouter. Includes a React dashboard served via HA Ingress."
 url: "https://github.com/LovelyPotato-ai/Agent-Hub-HA"
@@ -31,7 +31,7 @@ auth_api: true
 # /data  — persistent add-on storage (survives restarts, stores options + logs)
 # /config — read-only access to HA config directory (for reading secrets.yaml)
 map:
-  - config:rw
+  - config:ro
 
 # ── Add-on options (shown in the Configuration tab) ──────────────────────────
 options:
