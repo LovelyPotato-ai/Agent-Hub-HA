@@ -1,6 +1,6 @@
 ---
 name: "AI Hub"
-version: "1.1.0"
+version: "1.1.1"
 slug: "ai_hub"
 description: "Multi-agent AI orchestrator powered by CrewAI. Supports OpenAI, Gemini, Anthropic, and OpenRouter. Includes a React dashboard served via HA Ingress."
 url: "https://github.com/LovelyPotato-ai/Agent-Hub-HA"
