@@ -43,15 +43,19 @@ RUN pip install --no-cache-dir \
 
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY app/ /app/
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
+
+# ── Install run.sh as an s6-overlay service ───────────────────────────────────
+# HA base images use s6-overlay as PID 1 init. The correct pattern is to place
+# the entrypoint script at /etc/services.d/<name>/run so s6 manages it.
+# Using CMD ["/run.sh"] bypasses s6 and causes:
+#   s6-overlay-suexec: fatal: can only run as pid 1
+RUN mkdir -p /etc/services.d/ai_hub
+COPY run.sh /etc/services.d/ai_hub/run
+RUN chmod a+x /etc/services.d/ai_hub/run
 
 # ── Labels ────────────────────────────────────────────────────────────────────
 LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.0.1"
-
-# ── Entrypoint ────────────────────────────────────────────────────────────────
-CMD ["/run.sh"]
+    io.hass.version="1.0.4"
