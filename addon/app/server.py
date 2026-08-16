@@ -83,13 +83,18 @@ def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
 
     # ── Static frontend files ──────────────────────────────────────────
     if FRONTEND_DIST.exists():
-        # Serve index.html for the root path
+        # Serve index.html for root and any non-API path (SPA catch-all)
+        # HA Ingress strips the path prefix before forwarding, so the addon
+        # always receives requests starting from /.
         app.router.add_get("/", _serve_index)
-        # Serve all other static assets
+        # Serve built assets (JS, CSS chunks)
         app.router.add_static("/assets", FRONTEND_DIST / "assets", name="assets")
+        # Catch-all: serve index.html for any other GET (SPA client-side routing)
+        app.router.add_route("GET", "/{path_info:.*}", _serve_index)
         logger.info("Serving frontend from %s", FRONTEND_DIST)
     else:
         app.router.add_get("/", _no_frontend)
+        app.router.add_route("GET", "/{path_info:.*}", _no_frontend)
         logger.warning(
             "Frontend dist/ not found at %s. "
             "Run 'npm run build' in the frontend/ directory and copy dist/ here.",

@@ -6,6 +6,11 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
 
+  // Use relative base so assets load correctly under HA Ingress path prefix
+  // HA Ingress serves the app at /api/hassio_ingress/<token>/ — absolute paths
+  // like /assets/... would 404. Relative paths (./assets/...) work correctly.
+  base: './',
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
