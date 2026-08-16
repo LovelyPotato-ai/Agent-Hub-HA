@@ -1,9 +1,16 @@
 ---
 name: "AI Hub"
-version: "1.1.3"
+version: "1.1.6"
 slug: "ai_hub"
 description: "Multi-agent AI orchestrator powered by CrewAI. Supports OpenAI, Gemini, Anthropic, and OpenRouter. Includes a React dashboard served via HA Ingress."
 url: "https://github.com/LovelyPotato-ai/Agent-Hub-HA"
+# ── s6-overlay init ───────────────────────────────────────────────────────────
+# CRITICAL: Must be false for addons using s6-overlay base images.
+# Default is true, which makes the Supervisor pass --init to Docker, inserting
+# tini as PID 1 and pushing s6-overlay's /init to PID 2. s6-overlay-suexec
+# then fails with "can only run as pid 1".
+init: false
+
 arch:
   - aarch64
   - amd64

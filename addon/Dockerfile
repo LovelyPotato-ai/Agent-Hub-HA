@@ -11,8 +11,8 @@ FROM ${BUILD_FROM}
 
 # ── Force full rebuild (invalidates ALL subsequent layers) ───────────────────
 # Increment this value to bust the entire Docker layer cache on next build.
-# CACHE_BUST: v13
-ARG CACHE_BUST=v13
+# CACHE_BUST: v16
+ARG CACHE_BUST=v16
 RUN echo "Cache bust: ${CACHE_BUST}"
 
 # ── System dependencies ───────────────────────────────────────────────────────
@@ -67,9 +67,14 @@ RUN mkdir -p /etc/services.d/ai_hub
 COPY run.sh /etc/services.d/ai_hub/run
 RUN chmod a+x /etc/services.d/ai_hub/run
 
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+# Override ENTRYPOINT to /init to ensure s6-overlay runs as PID 1.
+# Do NOT set CMD — let s6 manage service startup via /etc/services.d/.
+ENTRYPOINT ["/init"]
+
 # ── Labels ────────────────────────────────────────────────────────────────────
 LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.1.3"
+    io.hass.version="1.1.6"
