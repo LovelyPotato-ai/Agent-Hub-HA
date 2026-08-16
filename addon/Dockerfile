@@ -11,8 +11,8 @@ FROM ${BUILD_FROM}
 
 # ── Force full rebuild (invalidates ALL subsequent layers) ───────────────────
 # Increment this value to bust the entire Docker layer cache on next build.
-# CACHE_BUST: v16
-ARG CACHE_BUST=v16
+# CACHE_BUST: v17
+ARG CACHE_BUST=v17
 RUN echo "Cache bust: ${CACHE_BUST}"
 
 # ── System dependencies ───────────────────────────────────────────────────────
@@ -47,6 +47,12 @@ RUN pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         -r /app/requirements.txt
 
+# ── Install chromadb stub ─────────────────────────────────────────────────────
+# crewai 1.15.16 unconditionally imports chromadb at startup even when memory/
+# RAG features are disabled. Real chromadb has no pre-built musllinux wheel and
+# requires Rust compilation. We install a minimal stub that satisfies the import.
+COPY chromadb_stub/chromadb/ /usr/local/lib/python3.12/site-packages/chromadb/
+
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY app/ /app/
 
@@ -77,4 +83,4 @@ LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.1.6"
+    io.hass.version="1.1.7"
