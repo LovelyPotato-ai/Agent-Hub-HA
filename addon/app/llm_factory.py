@@ -72,8 +72,8 @@ def get_llm(
 
     if not api_key or api_key.startswith("REPLACE_WITH"):
         raise ValueError(
-            f"API key for provider '{provider}' is missing or is still a "
-            f"placeholder. Set it in /config/secrets.yaml."
+            f"API key for provider '{provider}' is missing. "
+            f"Set it in the add-on Configuration tab in Home Assistant."
         )
 
     logger.info("Building LLM: provider=%s, model=%s", provider, model)

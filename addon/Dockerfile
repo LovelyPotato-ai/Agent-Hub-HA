@@ -11,8 +11,8 @@ FROM ${BUILD_FROM}
 
 # ── Force full rebuild (invalidates ALL subsequent layers) ───────────────────
 # Increment this value to bust the entire Docker layer cache on next build.
-# CACHE_BUST: v18
-ARG CACHE_BUST=v18
+# CACHE_BUST: v21
+ARG CACHE_BUST=v21
 RUN echo "Cache bust: ${CACHE_BUST}"
 
 # ── System dependencies ───────────────────────────────────────────────────────
@@ -47,11 +47,12 @@ RUN pip install --no-cache-dir \
         --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
         -r /app/requirements.txt
 
-# ── Install chromadb stub ─────────────────────────────────────────────────────
+# ── Install chromadb-client ───────────────────────────────────────────────────
 # crewai 1.15.16 unconditionally imports chromadb at startup even when memory/
-# RAG features are disabled. Real chromadb has no pre-built musllinux wheel and
-# requires Rust compilation. We install a minimal stub that satisfies the import.
-COPY chromadb_stub/chromadb/ /usr/local/lib/python3.12/site-packages/chromadb/
+# RAG features are disabled. The full chromadb package requires Rust compilation
+# and fails on Alpine ARM64/musl. chromadb-client is a pure-Python wheel that
+# provides the same API surface (HTTP client only, no embedded server).
+RUN pip install --no-cache-dir "chromadb-client==1.5.9"
 
 # ── Copy application code ─────────────────────────────────────────────────────
 COPY app/ /app/
@@ -83,4 +84,4 @@ LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.1.8"
+    io.hass.version="1.2.1"
