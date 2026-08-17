@@ -94,11 +94,8 @@ const AgentCard: FC<AgentCardProps> = ({ agent, onSelect }) => {
 // ---------------------------------------------------------------------------
 
 const TypingIndicator: FC = () => (
-  <div className="flex items-end gap-2">
-    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-ha-border text-xs font-bold text-ha-muted">
-      AI
-    </div>
-    <div className="rounded-2xl rounded-bl-sm bg-ha-surface border border-ha-border px-4 py-3">
+  <div className="max-w-[80%]">
+    <div className="rounded-2xl rounded-bl-sm border border-ha-border bg-ha-surface px-4 py-3">
       <div className="flex gap-1">
         <span className="h-2 w-2 rounded-full bg-ha-muted animate-bounce" style={{ animationDelay: '0ms' }} />
         <span className="h-2 w-2 rounded-full bg-ha-muted animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -123,15 +120,13 @@ const Bubble: FC<BubbleProps> = ({ message, agentInitial, agentColour }) => {
 
   if (isUser) {
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[80%]">
-          <div className="rounded-2xl rounded-br-sm bg-ha-blue px-4 py-3 text-sm text-white">
-            {message.content}
-          </div>
-          <p className="mt-1 text-right text-[10px] text-ha-muted">
-            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
+      <div className="max-w-[80%] ml-auto">
+        <div className="rounded-2xl rounded-br-sm bg-ha-blue px-4 py-2 text-sm text-white">
+          {message.content}
         </div>
+        <p className="mt-1 text-right text-[10px] text-ha-muted">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
       </div>
     )
   }
@@ -142,7 +137,7 @@ const Bubble: FC<BubbleProps> = ({ message, agentInitial, agentColour }) => {
         {agentInitial}
       </div>
       <div className="max-w-[80%]">
-        <div className="rounded-2xl rounded-bl-sm border border-ha-border bg-ha-surface px-4 py-3 text-sm text-ha-text prose-ha">
+        <div className="rounded-2xl rounded-bl-sm border border-ha-border bg-ha-surface px-4 py-2 text-sm text-ha-text prose-ha">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {message.content}
           </ReactMarkdown>
@@ -249,7 +244,7 @@ const ChatView: FC<ChatViewProps> = ({ agent, onBack }) => {
     <div className="flex h-full flex-col">
 
       {/* ── Chat header ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 border-b border-ha-border bg-ha-surface px-4 py-3">
+      <div className="flex flex-shrink-0 items-center gap-3 border-b border-ha-border bg-ha-surface px-4 py-3">
         <button
           type="button"
           onClick={onBack}
@@ -280,9 +275,9 @@ const ChatView: FC<ChatViewProps> = ({ agent, onBack }) => {
       </div>
 
       {/* ── Message list ────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && !isWaiting && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
             <div className={`flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white ${colour}`}>
               {initial}
             </div>
@@ -312,7 +307,7 @@ const ChatView: FC<ChatViewProps> = ({ agent, onBack }) => {
       </div>
 
       {/* ── Input area ──────────────────────────────────────────────── */}
-      <div className="border-t border-ha-border bg-ha-surface px-4 py-3">
+      <div className="flex-shrink-0 border-t border-ha-border bg-ha-surface px-4 pt-3 pb-20 md:pb-3">
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -369,51 +364,49 @@ export const ChatTab: FC = () => {
 
   // ── Agent selected → show chat ──────────────────────────────────────────
   if (selected) {
-    return (
-      <div className="flex h-full flex-col md:-m-6">
-        <ChatView agent={selected} onBack={() => setSelected(null)} />
-      </div>
-    )
+    return <ChatView agent={selected} onBack={() => setSelected(null)} />
   }
 
   // ── No agent selected → show grid ──────────────────────────────────────
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h2 className="text-base font-semibold text-ha-text">Chat with an Agent</h2>
-        <p className="mt-1 text-sm text-ha-muted">Select an agent to start a conversation.</p>
+    <div className="h-full overflow-y-auto p-4 pb-20 md:p-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+        <div>
+          <h2 className="text-base font-semibold text-ha-text">Chat with an Agent</h2>
+          <p className="mt-1 text-sm text-ha-muted">Select an agent to start a conversation.</p>
+        </div>
+
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-ha-muted">
+            <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Loading agents…
+          </div>
+        )}
+
+        {loadError && (
+          <p className="rounded-lg border border-red-800 bg-red-900/20 px-3 py-2 text-sm text-red-400">
+            {loadError}
+          </p>
+        )}
+
+        {!loading && !loadError && agents.length === 0 && (
+          <div className="rounded-xl border border-ha-border bg-ha-surface p-8 text-center">
+            <p className="text-sm text-ha-muted">No agents yet.</p>
+            <p className="mt-1 text-xs text-ha-muted">Create agents in the <strong className="text-ha-text">Agents</strong> tab first.</p>
+          </div>
+        )}
+
+        {!loading && agents.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {agents.map(agent => (
+              <AgentCard key={agent.id} agent={agent} onSelect={setSelected} />
+            ))}
+          </div>
+        )}
       </div>
-
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-ha-muted">
-          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-          </svg>
-          Loading agents…
-        </div>
-      )}
-
-      {loadError && (
-        <p className="rounded-lg border border-red-800 bg-red-900/20 px-3 py-2 text-sm text-red-400">
-          {loadError}
-        </p>
-      )}
-
-      {!loading && !loadError && agents.length === 0 && (
-        <div className="rounded-xl border border-ha-border bg-ha-surface p-8 text-center">
-          <p className="text-sm text-ha-muted">No agents yet.</p>
-          <p className="mt-1 text-xs text-ha-muted">Create agents in the <strong className="text-ha-text">Agents</strong> tab first.</p>
-        </div>
-      )}
-
-      {!loading && agents.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {agents.map(agent => (
-            <AgentCard key={agent.id} agent={agent} onSelect={setSelected} />
-          ))}
-        </div>
-      )}
     </div>
   )
 }
