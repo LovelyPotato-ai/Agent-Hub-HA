@@ -5,8 +5,28 @@
  * API root is /api — served by the aiohttp server.
  */
 
-const API_ROOT = '/api'
-const WS_ROOT = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api`
+// Derive the API root relative to the Vite base URL so that the frontend
+// works both when accessed directly (http://ha-ip:8099/) AND through HA
+// Ingress (/api/hassio_ingress/<token>/).
+//
+// Problem: using an absolute '/api' path breaks under HA Ingress because
+// the browser resolves it against the HA Supervisor origin
+// (https://homeassistant:8123/api/...) — hitting HA's own REST API → 404.
+//
+// Solution: Vite is configured with base='./' (relative). At build time,
+// import.meta.env.BASE_URL is replaced with './' so fetch calls using
+// this prefix resolve relative to the current page URL — which is always
+// the ingress root regardless of SPA client-side navigation.
+//
+// Examples:
+//   Direct:  location = http://ha:8099/          → fetch('./api/settings') → /api/settings ✓
+//   Ingress: location = https://ha/api/hassio_ingress/<tok>/
+//            → fetch('./api/settings') → /api/hassio_ingress/<tok>/api/settings ✓
+//   SPA nav: location = https://ha/api/hassio_ingress/<tok>/settings
+//            → fetch('./api/settings') → /api/hassio_ingress/<tok>/api/settings ✓
+const _apiBase = new URL(import.meta.env.BASE_URL + 'api', location.href)
+const API_ROOT = _apiBase.pathname          // absolute path, same origin
+const WS_ROOT = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${_apiBase.pathname}`
 
 // ---------------------------------------------------------------------------
 // Shared helpers

@@ -22,10 +22,15 @@ export function useCrewStatus(jobId: string | null): CrewStatusState {
   const backoffRef = useRef<number>(1000)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  // Tracks the jobId that the current connection was opened for.
+  // Prevents a stale onclose handler (from a previous jobId) from
+  // scheduling a reconnect after the jobId has already changed.
+  const activeJobIdRef = useRef<string | null>(null)
 
   const connect = useCallback(() => {
     if (!jobId || !mountedRef.current) return
     setState(INITIAL_STATE)
+    activeJobIdRef.current = jobId
     const ws = createWebSocket(jobId)
     wsRef.current = ws
 
@@ -56,7 +61,11 @@ export function useCrewStatus(jobId: string | null): CrewStatusState {
     ws.onerror = () => { /* handled by onclose */ }
 
     ws.onclose = (event: CloseEvent) => {
-      if (!mountedRef.current || event.code === 1000) return
+      // Guard 1: component unmounted — do not reconnect.
+      // Guard 2: clean close (code 1000) — do not reconnect.
+      // Guard 3: stale handler — jobId has changed since this WS was opened,
+      //          so reconnecting would re-open a socket for the old job.
+      if (!mountedRef.current || event.code === 1000 || activeJobIdRef.current !== jobId) return
       const delay = backoffRef.current
       backoffRef.current = Math.min(delay * 2, MAX_BACKOFF_MS)
       reconnectTimerRef.current = setTimeout(() => { if (mountedRef.current) connect() }, delay)
