@@ -91,6 +91,7 @@ export interface TaskDef {
   name: string
   description: string
   agent_id: string
+  github_repo_id?: string
   expected_output: string
   depends_on: string[]
   allow_delegation: boolean
@@ -128,9 +129,6 @@ export interface AgentOverride { provider: string; model: string }
 export interface SettingsPayload {
   active_llm_provider: string
   active_llm_model: string
-  github_branch: string
-  github_repo_owner: string
-  github_repo_name: string
   agent_overrides: Record<string, AgentOverride>
   openai_api_key?: string
   gemini_api_key?: string
@@ -199,6 +197,32 @@ export const updateProvider  = (id: string, data: ProviderUpdate) => apiFetch<Pr
 export const deleteProvider  = (id: string)                       => apiFetch<{ status: string }>(`/providers/${id}`, { method: 'DELETE' })
 export const fetchProviderModels = (id: string) =>
   apiFetch<{ models: string[] }>(`/providers/${id}/fetch-models`, { method: 'POST' })
+
+// ---------------------------------------------------------------------------
+// GitHub repo (connection) types
+// ---------------------------------------------------------------------------
+
+export interface GitHubRepoDef {
+  id: string
+  name: string
+  owner: string
+  repo: string
+  branch: string
+  created_at: string
+  updated_at: string
+}
+
+export type GitHubRepoCreate = Omit<GitHubRepoDef, 'id' | 'created_at' | 'updated_at'>
+export type GitHubRepoUpdate = Partial<GitHubRepoCreate>
+
+// ---------------------------------------------------------------------------
+// GitHub repo (connection) API
+// ---------------------------------------------------------------------------
+
+export const listGitHubRepos   = () => apiFetch<GitHubRepoDef[]>('/github-repos')
+export const createGitHubRepo  = (data: GitHubRepoCreate) => apiFetch<GitHubRepoDef>('/github-repos', { method: 'POST', body: JSON.stringify(data) })
+export const updateGitHubRepo  = (id: string, data: GitHubRepoUpdate) => apiFetch<GitHubRepoDef>(`/github-repos/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteGitHubRepo  = (id: string) => apiFetch<{ status: string }>(`/github-repos/${id}`, { method: 'DELETE' })
 
 // ---------------------------------------------------------------------------
 // Tools API

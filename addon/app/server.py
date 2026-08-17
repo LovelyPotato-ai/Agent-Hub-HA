@@ -128,6 +128,12 @@ def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
     app.router.add_delete("/api/providers/{id}",               orchestrator.http_providers_delete)
     app.router.add_post("/api/providers/{id}/fetch-models",    orchestrator.http_providers_fetch_models)
 
+    # ── GitHub connections ─────────────────────────────────────────────
+    app.router.add_get("/api/github-repos",          orchestrator.http_github_repos_list)
+    app.router.add_post("/api/github-repos",         orchestrator.http_github_repos_create)
+    app.router.add_put("/api/github-repos/{id}",     orchestrator.http_github_repos_update)
+    app.router.add_delete("/api/github-repos/{id}",  orchestrator.http_github_repos_delete)
+
     # ── Tools ──────────────────────────────────────────────────────────
     app.router.add_get("/api/tools", orchestrator.http_tools_list)
 

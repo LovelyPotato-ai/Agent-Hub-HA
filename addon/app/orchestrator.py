@@ -24,6 +24,11 @@ HTTP API:
   DEL  /api/providers/{id}      — delete provider
   POST /api/providers/{id}/fetch-models — fetch live models from provider
 
+  GET  /api/github-repos        — list GitHub connections
+  POST /api/github-repos        — create GitHub connection
+  PUT  /api/github-repos/{id}   — update GitHub connection
+  DEL  /api/github-repos/{id}   — delete GitHub connection
+
   GET  /api/tools               — list available tools
 
   POST /api/run/workflow/{id}   — run a workflow
@@ -58,6 +63,9 @@ from agent_registry import (
     create_agent, delete_agent, get_agent, list_agents, update_agent,
 )
 from crew_executor import CrewExecutor
+from github_registry import (
+    create_repo, delete_repo, get_repo, list_repos, update_repo,
+)
 from ha_client import HAClient
 from llm_factory import get_llm, get_llm_from_provider_def
 from provider_registry import (
@@ -584,6 +592,45 @@ class AIHubOrchestrator:
             return _json_ok({"models": models})
         except Exception as exc:
             return _json_err(str(exc), status=500)
+
+    # ==================================================================
+    # HTTP Handlers — GitHub Repos
+    # ==================================================================
+
+    async def http_github_repos_list(self, request: web.Request) -> web.Response:
+        """GET /api/github-repos"""
+        return _json_ok(list_repos())
+
+    async def http_github_repos_create(self, request: web.Request) -> web.Response:
+        """POST /api/github-repos"""
+        try:
+            body = await request.json()
+        except Exception:
+            return _json_err("Invalid JSON body")
+        try:
+            repo = create_repo(body)
+            return _json_ok(repo, status=201)
+        except ValueError as exc:
+            return _json_err(str(exc))
+
+    async def http_github_repos_update(self, request: web.Request) -> web.Response:
+        """PUT /api/github-repos/{id}"""
+        repo_id = request.match_info["id"]
+        try:
+            body = await request.json()
+        except Exception:
+            return _json_err("Invalid JSON body")
+        repo = update_repo(repo_id, body)
+        if not repo:
+            return _json_err(f"GitHub connection '{repo_id}' not found", status=404)
+        return _json_ok(repo)
+
+    async def http_github_repos_delete(self, request: web.Request) -> web.Response:
+        """DELETE /api/github-repos/{id}"""
+        repo_id = request.match_info["id"]
+        if not delete_repo(repo_id):
+            return _json_err(f"GitHub connection '{repo_id}' not found", status=404)
+        return _json_ok({"status": "deleted"})
 
     # ==================================================================
     # HTTP Handlers — Tools

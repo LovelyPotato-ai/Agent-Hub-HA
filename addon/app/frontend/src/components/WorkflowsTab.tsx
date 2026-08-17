@@ -12,8 +12,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
-  createWorkflow, deleteWorkflow, listAgents, listWorkflows, updateWorkflow,
-  type AgentDef, type TaskDef, type WorkflowCreate, type WorkflowDef,
+  createWorkflow, deleteWorkflow, listAgents, listGitHubRepos, listWorkflows, updateWorkflow,
+  type AgentDef, type GitHubRepoDef, type TaskDef, type WorkflowCreate, type WorkflowDef,
 } from '../api/aiHubClient'
 
 // ---------------------------------------------------------------------------
@@ -102,12 +102,15 @@ function flowToTasks(nodes: Node[], edges: Edge[], originalTasks: TaskDef[]): Ta
 interface TaskEditorProps {
   task: TaskDef
   agents: AgentDef[]
+  githubRepos: GitHubRepoDef[]
   onChange: (updated: TaskDef) => void
   onDelete: () => void
 }
 
-const TaskEditor: FC<TaskEditorProps> = ({ task, agents, onChange, onDelete }) => {
+const TaskEditor: FC<TaskEditorProps> = ({ task, agents, githubRepos, onChange, onDelete }) => {
   const inputCls = 'w-full rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text focus:outline-none focus:ring-2 focus:ring-ha-blue'
+  const assignedAgent = agents.find(a => a.id === task.agent_id)
+  const hasGithubCommit = assignedAgent?.tools.includes('github_commit') ?? false
   return (
     <div className="flex flex-col gap-3 p-4 border-l border-ha-border bg-ha-surface h-full overflow-y-auto">
       <div className="flex items-center justify-between">
@@ -125,6 +128,15 @@ const TaskEditor: FC<TaskEditorProps> = ({ task, agents, onChange, onDelete }) =
           {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </div>
+      {hasGithubCommit && (
+        <div>
+          <label className="block text-xs text-ha-muted mb-1">GitHub Repository</label>
+          <select className={inputCls} value={task.github_repo_id ?? ''} onChange={e => onChange({ ...task, github_repo_id: e.target.value })}>
+            <option value="">— Default (first connection) —</option>
+            {githubRepos.map(r => <option key={r.id} value={r.id}>{r.name} ({r.owner}/{r.repo})</option>)}
+          </select>
+        </div>
+      )}
       <div>
         <label className="block text-xs text-ha-muted mb-1">Description <span className="text-ha-blue">{'{prompt}'}</span> = user input</label>
         <textarea className={inputCls} rows={4} value={task.description} onChange={e => onChange({ ...task, description: e.target.value })} />
@@ -148,11 +160,12 @@ const TaskEditor: FC<TaskEditorProps> = ({ task, agents, onChange, onDelete }) =
 interface WorkflowEditorProps {
   initial?: WorkflowDef | null
   agents: AgentDef[]
+  githubRepos: GitHubRepoDef[]
   onSave: (wf: WorkflowDef) => void
   onCancel: () => void
 }
 
-const WorkflowEditor: FC<WorkflowEditorProps> = ({ initial, agents, onSave, onCancel }) => {
+const WorkflowEditor: FC<WorkflowEditorProps> = ({ initial, agents, githubRepos, onSave, onCancel }) => {
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [process, setProcess] = useState<'sequential' | 'hierarchical' | 'dag'>(initial?.process ?? 'sequential')
@@ -289,6 +302,7 @@ const WorkflowEditor: FC<WorkflowEditorProps> = ({ initial, agents, onSave, onCa
             <TaskEditor
               task={selectedTask}
               agents={agents}
+              githubRepos={githubRepos}
               onChange={updateTask}
               onDelete={() => deleteTask(selectedTask.id)}
             />
@@ -356,6 +370,7 @@ const WorkflowCard: FC<WorkflowCardProps> = ({ workflow, agents, onEdit, onDelet
 export const WorkflowsTab: FC = () => {
   const [workflows, setWorkflows] = useState<WorkflowDef[]>([])
   const [agents, setAgents] = useState<AgentDef[]>([])
+  const [githubRepos, setGithubRepos] = useState<GitHubRepoDef[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<WorkflowDef | null | 'new'>(null)
@@ -364,9 +379,10 @@ export const WorkflowsTab: FC = () => {
     setLoading(true)
     setError(null)
     try {
-      const [w, a] = await Promise.all([listWorkflows(), listAgents()])
+      const [w, a, g] = await Promise.all([listWorkflows(), listAgents(), listGitHubRepos()])
       setWorkflows(w)
       setAgents(a)
+      setGithubRepos(g)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
     } finally {
@@ -429,6 +445,7 @@ export const WorkflowsTab: FC = () => {
           <WorkflowEditor
             initial={editing === 'new' ? null : editing as WorkflowDef}
             agents={agents}
+            githubRepos={githubRepos}
             onSave={handleSave}
             onCancel={() => setEditing(null)}
           />

@@ -57,9 +57,6 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     "anthropic_api_key": "",
     "openrouter_api_key": "",
     "github_pat": "",
-    "github_repo_owner": "",
-    "github_repo_name": "",
-    "github_branch": "main",
     "log_level": "info",
     # Per-agent overrides (stored as nested dict in options.json)
     "agent_overrides": {agent: {"provider": "", "model": ""} for agent in AGENT_ROLES},
@@ -143,9 +140,6 @@ def load_settings() -> dict[str, Any]:
     return {
         "active_llm_provider": options.get("active_llm_provider", "openai"),
         "active_llm_model":    options.get("active_llm_model", "gpt-4o"),
-        "github_branch":       options.get("github_branch", "main"),
-        "github_repo_owner":   options.get("github_repo_owner", ""),
-        "github_repo_name":    options.get("github_repo_name", ""),
         "agent_overrides":     options.get("agent_overrides", {}),
         "keys_configured":     keys_configured,
     }
@@ -168,12 +162,6 @@ def save_settings(payload: dict[str, Any]) -> dict[str, str]:
             options["active_llm_provider"] = str(payload["active_llm_provider"])
         if "active_llm_model" in payload:
             options["active_llm_model"] = str(payload["active_llm_model"])
-        if "github_branch" in payload:
-            options["github_branch"] = str(payload["github_branch"])
-        if "github_repo_owner" in payload:
-            options["github_repo_owner"] = str(payload["github_repo_owner"])
-        if "github_repo_name" in payload:
-            options["github_repo_name"] = str(payload["github_repo_name"])
 
         # ── Per-agent overrides ────────────────────────────────────────
         overrides: dict[str, dict] = payload.get("agent_overrides", {})

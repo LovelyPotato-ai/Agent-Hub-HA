@@ -4,7 +4,7 @@
  * Allows editing:
  *   - Global LLM provider + model
  *   - Per-agent provider + model overrides
- *   - GitHub config (repo owner, repo name, branch, PAT)
+ *   - GitHub PAT (global) + named GitHub connections
  *
  * On save, calls POST /api/settings/save.
  * Settings are persisted by the addon server.
@@ -19,6 +19,7 @@ import {
   type SettingsMetadata,
   type SettingsResponse,
 } from '../api/aiHubClient'
+import { GitHubReposSection } from './GitHubReposSection'
 import { ProvidersSection } from './ProvidersSection'
 
 // ---------------------------------------------------------------------------
@@ -137,9 +138,6 @@ export const SettingsPanel: FC = () => {
       const payload = {
         active_llm_provider: settings.active_llm_provider,
         active_llm_model: settings.active_llm_model,
-        github_branch: settings.github_branch,
-        github_repo_owner: settings.github_repo_owner,
-        github_repo_name: settings.github_repo_name,
         agent_overrides: settings.agent_overrides,
         github_pat: githubPat,
       }
@@ -258,35 +256,6 @@ export const SettingsPanel: FC = () => {
 
       {/* ── GitHub config ───────────────────────────────────────────── */}
       <Section title="GitHub Configuration">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Repo Owner">
-            <input
-              type="text"
-              value={settings.github_repo_owner}
-              onChange={e => updateSetting('github_repo_owner', e.target.value)}
-              placeholder="your-username"
-              className="rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text focus:outline-none focus:ring-2 focus:ring-ha-blue"
-            />
-          </Field>
-          <Field label="Repo Name">
-            <input
-              type="text"
-              value={settings.github_repo_name}
-              onChange={e => updateSetting('github_repo_name', e.target.value)}
-              placeholder="your-repo"
-              className="rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text focus:outline-none focus:ring-2 focus:ring-ha-blue"
-            />
-          </Field>
-        </div>
-        <Field label="Branch">
-          <input
-            type="text"
-            value={settings.github_branch}
-            onChange={e => updateSetting('github_branch', e.target.value)}
-            placeholder="main"
-            className="w-40 rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text focus:outline-none focus:ring-2 focus:ring-ha-blue"
-          />
-        </Field>
         <Field
           label={
             <span className="flex items-center gap-2">
@@ -295,6 +264,7 @@ export const SettingsPanel: FC = () => {
                 title={settings.keys_configured.github_pat ? 'Configured' : 'Not configured'} />
             </span>
           }
+          hint="One global Personal Access Token is used for all GitHub connections."
         >
           <input
             type="password"
@@ -305,6 +275,7 @@ export const SettingsPanel: FC = () => {
             className="rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text font-mono focus:outline-none focus:ring-2 focus:ring-ha-blue"
           />
         </Field>
+        <GitHubReposSection />
       </Section>
 
       {/* ── Save button ─────────────────────────────────────────────── */}

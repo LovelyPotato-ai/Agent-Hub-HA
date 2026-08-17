@@ -85,10 +85,14 @@ def _build_crewai_agent(
     tool_factory: ToolFactory,
     default_llm: Any,
     allow_delegation_override: bool | None = None,
+    github_repo_id: str = "",
 ) -> Agent:
     """Build a CrewAI Agent from an agent definition dict."""
     llm = _resolve_llm(agent_def.get("llm_override"), default_llm)
-    tools = tool_factory.get_tools(agent_def.get("tools", []))
+    tool_ids = list(agent_def.get("tools", []))
+    tools = tool_factory.get_tools([t for t in tool_ids if t != "github_commit"])
+    if "github_commit" in tool_ids:
+        tools.append(tool_factory.get_github_tool_for_repo(github_repo_id))
     allow_delegation = (
         allow_delegation_override
         if allow_delegation_override is not None
@@ -301,7 +305,8 @@ class CrewExecutor:
                     )
                 if agent_id not in crewai_agents:
                     crewai_agents[agent_id] = _build_crewai_agent(
-                        agent_def, self._tool_factory, self._default_llm
+                        agent_def, self._tool_factory, self._default_llm,
+                        github_repo_id=task_def.get("github_repo_id", ""),
                     )
                 context_tasks = [
                     crewai_tasks[dep_id]
@@ -398,7 +403,10 @@ class CrewExecutor:
                 f"Task '{task_def['name']}' references unknown agent '{agent_id}'"
             )
 
-        agent = _build_crewai_agent(agent_def, self._tool_factory, self._default_llm)
+        agent = _build_crewai_agent(
+            agent_def, self._tool_factory, self._default_llm,
+            github_repo_id=task_def.get("github_repo_id", ""),
+        )
 
         # Build description with context from dependencies
         description = task_def["description"].replace("{prompt}", prompt)
@@ -456,6 +464,7 @@ class CrewExecutor:
                     crewai_agents[agent_id] = _build_crewai_agent(
                         agent_def, self._tool_factory, self._default_llm,
                         allow_delegation_override=True,  # All agents can delegate in hierarchical
+                        github_repo_id=task_def.get("github_repo_id", ""),
                     )
                 context_tasks = [
                     crewai_tasks[dep_id]

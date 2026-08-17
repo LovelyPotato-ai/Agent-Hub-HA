@@ -11,8 +11,8 @@ FROM ${BUILD_FROM}
 
 # ── Force full rebuild (invalidates ALL subsequent layers) ───────────────────
 # Increment this value to bust the entire Docker layer cache on next build.
-# CACHE_BUST: v30
-ARG CACHE_BUST=v30
+# CACHE_BUST: v31
+ARG CACHE_BUST=v31
 RUN echo "Cache bust: ${CACHE_BUST}"
 
 # ── System dependencies ───────────────────────────────────────────────────────
@@ -84,4 +84,4 @@ LABEL \
     io.hass.name="AI Hub" \
     io.hass.description="Multi-agent AI orchestrator powered by CrewAI" \
     io.hass.type="addon" \
-    io.hass.version="1.3.7"
+    io.hass.version="1.3.8"

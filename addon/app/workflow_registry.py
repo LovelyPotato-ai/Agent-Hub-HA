@@ -70,6 +70,7 @@ def _normalize_task(task: dict[str, Any]) -> dict[str, Any]:
         "name": str(task.get("name", "Unnamed Task")),
         "description": str(task.get("description", "")),
         "agent_id": str(task.get("agent_id", "")),
+        "github_repo_id": task.get("github_repo_id", ""),  # empty = use first/default connection
         "expected_output": str(task.get("expected_output", "Task output")),
         "depends_on": list(task.get("depends_on", [])),
         "allow_delegation": bool(task.get("allow_delegation", False)),
