@@ -26,7 +26,7 @@ interface ProviderFormProps {
 
 const ProviderForm: FC<ProviderFormProps> = ({ initial, onSave, onCancel }) => {
   const [name, setName] = useState(initial?.name ?? '')
-  const [type, setType] = useState<'openai_compatible' | 'gemini' | 'anthropic'>(initial?.type ?? 'openai_compatible')
+  const [type, setType] = useState<'openai' | 'openai_compatible' | 'gemini' | 'anthropic'>(initial?.type ?? 'openai_compatible')
   const [baseUrl, setBaseUrl] = useState(initial?.base_url ?? '')
   const [modelsText, setModelsText] = useState((initial?.models ?? []).join(', '))
   const [saving, setSaving] = useState(false)
