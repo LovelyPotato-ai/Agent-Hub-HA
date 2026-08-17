@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* React Flow base styles — required for the workflow DAG canvas */
+@import '@xyflow/react/dist/style.css';
+
 @layer base {
   html {
     @apply bg-ha-bg text-ha-text;

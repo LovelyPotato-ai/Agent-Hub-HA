@@ -1,317 +1,187 @@
-# AI Hub — Multi-Agent Orchestrator for Home Assistant
+# AI Hub — Home Assistant Add-on
 
-A lightweight, modular multi-agent AI system running locally on a **Home Assistant Green** device. Uses **CrewAI** for agent orchestration inside the **AppDaemon** add-on. All LLM inference is offloaded to cloud APIs — no local model loading.
-
----
-
-## Architecture
-
-```
-AppDaemon Add-on (Python)
-├── main.py              ← AIHubOrchestrator (hass.Hass subclass)
-├── llm_factory.py       ← Configurable LLM provider (OpenAI / Gemini / Anthropic / OpenRouter)
-├── crew_router.py       ← Runtime crew selector
-├── agents.py            ← All CrewAI Agent definitions
-├── tasks.py             ← All CrewAI Task definitions
-├── tools.py             ← GitHubCommitTool + HASensorReaderTool
-└── crews/
-    ├── code_review_crew.py    ← Developer → Reviewer → DevOps
-    ├── ha_automation_crew.py  ← NL prompt → HA YAML → GitHub
-    └── ha_assistant_crew.py   ← Survey sensors → suggest → commit
-
-React Frontend (Vite + Tailwind)
-└── frontend/src/
-    ├── App.tsx
-    ├── api/aiHubClient.ts
-    ├── hooks/useCrewStatus.ts
-    └── components/
-        ├── CrewSelector.tsx
-        ├── PromptInput.tsx
-        ├── StatusBadge.tsx
-        ├── StatusFeed.tsx
-        └── ResultPanel.tsx
-```
+AI Hub is a **Home Assistant add-on** that brings a dynamic, multi-agent AI orchestration system directly into your smart home. Powered by [CrewAI](https://github.com/crewAIInc/crewAI), it lets you define custom AI agents, build visual multi-step workflows, and run them on demand — all from a built-in web UI accessible via the HA sidebar.
 
 ---
 
-## Prerequisites
+## Features
 
-- Home Assistant OS running on HA Green (or any HAOS device)
-- AppDaemon add-on installed from the HA Add-on Store
-- At least one LLM API key (OpenAI, Gemini, Anthropic, or OpenRouter)
-- A GitHub Personal Access Token with `Contents: read & write` permission
-- Node.js 20+ (for building the frontend — can be done on your dev machine)
+- **Custom Agents** — Define agents with a role, goal, backstory, tool selection, and an optional per-agent LLM override.
+- **Visual Workflow Builder** — Build workflows as directed acyclic graphs (DAGs) on a React Flow canvas. Draw dependency edges between tasks to control execution order.
+- **Execution Modes** — Choose between *Sequential*, *DAG (parallel branches)*, and *Hierarchical (manager LLM)* execution per workflow.
+- **Run on Demand** — Trigger any workflow or individual agent from the UI with a free-text prompt.
+- **Real-time Output** — WebSocket-based live status feed shows agent progress as it happens; results are displayed inline.
+- **Default Workflows** — Three ready-to-use workflows are seeded on first run: *Code Review*, *HA Automation*, and *HA Assistant*.
+- **Built-in Tools** — `ha_sensor_reader` (reads Home Assistant entity states) and `github_commit` (commits files to a GitHub repository).
+- **Multiple LLM Providers** — OpenAI, Google Gemini, Anthropic, and OpenRouter are all supported and switchable from the Configuration tab.
+- **HA Automation API** — REST endpoints let you trigger workflows and agents from HA automations and scripts.
 
 ---
 
-## Phase 1 — AppDaemon Setup
+## Installation
 
-### Step 1: Copy secrets
+1. In Home Assistant, go to **Settings → Add-ons → Add-on Store**.
+2. Click the **⋮** menu (top-right) and select **Repositories**.
+3. Add the following URL and click **Add**:
+   ```
+   https://github.com/LovelyPotato-ai/Agent-Hub-HA
+   ```
+4. Find **AI Hub** in the store and click **Install**.
+5. Open the **Configuration** tab and fill in your API keys (see [Configuration](#configuration) below).
+6. Click **Start**.
+7. Enable **Show in sidebar** to access the AI Hub panel from the HA sidebar.
 
-Add the entries from [`ha_config/secrets.yaml.template`](ha_config/secrets.yaml.template) to your `/config/secrets.yaml` on the HA device. Fill in your real API keys.
+---
+
+## Configuration
+
+All options are set in the add-on's **Configuration** tab in Home Assistant.
+
+| Option | Description |
+|---|---|
+| `active_llm_provider` | LLM provider to use: `openai`, `gemini`, `anthropic`, or `openrouter` |
+| `active_llm_model` | Model slug for the selected provider (e.g. `gpt-4o`, `gemini-2.0-flash`) |
+| `openai_api_key` | OpenAI API key |
+| `gemini_api_key` | Google Gemini API key |
+| `anthropic_api_key` | Anthropic API key |
+| `openrouter_api_key` | OpenRouter API key |
+| `github_pat` | GitHub Personal Access Token (required for the `github_commit` tool) |
+| `github_repo_owner` | GitHub repository owner/organisation |
+| `github_repo_name` | GitHub repository name |
+| `github_branch` | Target branch for commits (default: `main`) |
+| `log_level` | Logging verbosity: `trace`, `debug`, `info`, `warning`, `error`, or `fatal` |
+
+---
+
+## Usage
+
+The AI Hub UI has four tabs:
+
+### Run
+Select a workflow or a single agent from the dropdown, enter a prompt, and click **Run**. The live status feed shows each agent's progress in real time. The final result is displayed below the feed when the job completes.
+
+### Agents
+Create, edit, and delete custom agents. Each agent has:
+- **Role** — The agent's job title / persona.
+- **Goal** — What the agent is trying to achieve.
+- **Backstory** — Background context that shapes the agent's behaviour.
+- **Tools** — One or more tools the agent can call (`ha_sensor_reader`, `github_commit`).
+- **LLM Override** *(optional)* — Use a different provider/model for this specific agent instead of the global default.
+
+### Workflows
+Build and manage workflows on a visual canvas:
+- **Add tasks** — Each task maps to an agent and carries its own instructions.
+- **Draw edges** — Connect tasks to define execution dependencies (DAG).
+- **Execution mode** — Set to *Sequential*, *DAG*, or *Hierarchical* per workflow.
+- **Run** — Trigger the workflow directly from the canvas with a prompt.
+
+### Settings
+View and update the global LLM provider and model without leaving the UI. Full API key management is done in the HA Configuration tab.
+
+---
+
+## API Reference
+
+AI Hub exposes a REST + WebSocket API that can be called from Home Assistant automations, scripts, or external tools.
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/run/workflow/{id}` | Run a workflow by ID |
+| `POST` | `/api/run/agent/{id}` | Run a single agent by ID |
+| `GET` | `/api/agents` | List all agents |
+| `GET` | `/api/workflows` | List all workflows |
+| `GET` | `/api/tools` | List available tools |
+| `GET` | `/api/status` | Current job status |
+| `GET` | `/api/result` | Last job result |
+| `WS` | `/api/ws?job_id=*` | Real-time status stream for a job |
+
+### Example — trigger a workflow from an HA automation
 
 ```yaml
-# Minimum required entries:
-appdaemon_token: "YOUR_HA_LONG_LIVED_ACCESS_TOKEN"
-appdaemon_api_password: "CHOOSE_A_STRONG_PASSWORD"
-active_llm_provider: "openai"          # or gemini | anthropic | openrouter
-active_llm_model: "gpt-4o"
-openai_api_key: "sk-..."
-github_pat: "ghp_..."
-github_repo_owner: "your-username"
-github_repo_name: "your-repo"
+action: rest_command.run_ai_workflow
+data:
+  workflow_id: "ha_automation"
+  prompt: "Create an automation that turns off all lights at midnight."
 ```
 
-### Step 2: Copy AppDaemon config
+```yaml
+rest_command:
+  run_ai_workflow:
+    url: "http://localhost:7123/api/run/workflow/{{ workflow_id }}"
+    method: POST
+    content_type: "application/json"
+    payload: '{"prompt": "{{ prompt }}"}'
+```
 
-Copy [`appdaemon/appdaemon.yaml`](appdaemon/appdaemon.yaml) to `/config/appdaemon/appdaemon.yaml`.
+---
 
-> **Important:** Update `time_zone`, `latitude`, `longitude`, and `elevation` to match your location.
+## Development
 
-### Step 3: Copy the app files
+### Architecture
 
-Copy the entire [`appdaemon/apps/ai_hub/`](appdaemon/apps/ai_hub/) directory to `/config/appdaemon/apps/ai_hub/` on your HA device.
+| Layer | Technology |
+|---|---|
+| Add-on runtime | Alpine Linux 3.20, s6-overlay v3 |
+| Base image | `ghcr.io/home-assistant/aarch64-base-python:3.12-alpine3.20` |
+| Backend | Python 3.12, aiohttp |
+| AI engine | CrewAI 1.15.16 |
+| Frontend | React 18, Vite, Tailwind CSS, @xyflow/react (React Flow v12) |
+| Persistent storage | `/data/agents.json`, `/data/workflows.json` |
 
-Using the HA File Editor add-on or SSH:
+### Project layout
+
+```
+addon/
+├── config.yaml          # HA add-on manifest
+├── Dockerfile
+├── run.sh               # s6 entrypoint
+├── requirements.txt
+├── app/
+│   ├── server.py        # aiohttp HTTP + WebSocket server
+│   ├── orchestrator.py  # job queue and execution controller
+│   ├── crew_executor.py # CrewAI integration
+│   ├── agent_registry.py
+│   ├── workflow_registry.py
+│   ├── tool_factory.py
+│   ├── llm_factory.py
+│   ├── ha_client.py     # Home Assistant REST API client
+│   ├── seed_defaults.py # seeds default workflows on first run
+│   └── frontend/        # React + Vite source
+│       └── src/
+│           ├── App.tsx
+│           ├── components/
+│           └── api/aiHubClient.ts
+```
+
+### Building the frontend
 
 ```bash
-# Via SSH (replace with your HA IP)
-scp -r appdaemon/apps/ai_hub/ root@homeassistant.local:/config/appdaemon/apps/
-```
-
-### Step 4: Add HA helper entities
-
-Add the contents of [`ha_config/ai_hub_entities.yaml`](ha_config/ai_hub_entities.yaml) to your `/config/configuration.yaml`:
-
-```yaml
-# In /config/configuration.yaml:
-input_text: !include ai_hub_entities.yaml
-input_button: !include ai_hub_entities.yaml
-```
-
-Or copy the `input_text:` and `input_button:` sections directly into `configuration.yaml`.
-
-### Step 5: Add HA automations
-
-Add the contents of [`ha_config/automations.yaml`](ha_config/automations.yaml) to your HA automations (via the UI or file).
-
-### Step 6: Add HA Ingress panel
-
-Add to `/config/configuration.yaml`:
-
-```yaml
-panel_iframe:
-  ai_hub:
-    title: "AI Hub"
-    icon: mdi:robot
-    url: "http://homeassistant.local:5050/api/appdaemon/ai_hub/"
-    require_admin: true
-```
-
-### Step 7: Restart
-
-1. Restart Home Assistant (Developer Tools → Restart)
-2. Restart the AppDaemon add-on
-
-Check the AppDaemon logs for:
-```
-AI Hub Orchestrator ready.
-Listening for HA event: 'ai_hub_trigger'
-HTTP endpoints registered at /api/appdaemon/ai_hub/
-```
-
----
-
-## Phase 4 — Build the Frontend
-
-The frontend is a Vite + React + Tailwind app. Build it on your development machine, then copy the `dist/` output to the HA device.
-
-```bash
-cd appdaemon/apps/ai_hub/frontend
-
-# Install dependencies
+cd addon/app/frontend
 npm install
-
-# Development server (proxies API calls to HA Green)
-npm run dev
-
-# Production build
 npm run build
-
-# Copy dist/ to HA device
-scp -r dist/ root@homeassistant.local:/config/appdaemon/apps/ai_hub/frontend/
 ```
 
-The frontend will be accessible at:
-- Via HA Ingress panel: **AI Hub** in the HA sidebar
-- Directly: `http://homeassistant.local:5050/api/appdaemon/ai_hub/`
+The built assets are served by the aiohttp backend via HA Ingress.
 
-### Development environment variables
-
-Create `appdaemon/apps/ai_hub/frontend/.env.local` for local development:
-
-```env
-VITE_API_BASE_URL=http://homeassistant.local:5050
-VITE_AD_PASSWORD=your_appdaemon_api_password
-```
-
----
-
-## Triggering Crews
-
-### Via HA Dashboard (buttons)
-
-Use the `input_button` entities added in Step 4. The automations in `ha_config/automations.yaml` wire them to the trigger event.
-
-### Via HA Developer Tools
-
-Go to **Developer Tools → Events** and fire:
-
-```yaml
-Event type: ai_hub_trigger
-Event data:
-  crew: code_review
-  prompt: "Write a Python function that validates HA entity IDs"
-  options: {}
-```
-
-Valid `crew` values: `code_review` | `ha_automation` | `ha_assistant`
-
-### Via the React Frontend
-
-Select a crew, enter a prompt, and click **Run Crew**.
-
-### Via REST API
+### Running locally (outside HA)
 
 ```bash
-curl -X POST http://homeassistant.local:5050/api/appdaemon/ai_hub/trigger \
-  -H "Authorization: Bearer YOUR_AD_PASSWORD" \
-  -H "Content-Type: application/json" \
-  -d '{"crew": "code_review", "prompt": "Write a YAML parser utility"}'
+pip install -r addon/requirements.txt
+python addon/app/server.py
 ```
+
+Set the required environment variables (`ACTIVE_LLM_PROVIDER`, `OPENAI_API_KEY`, etc.) before starting.
 
 ---
 
-## Switching LLM Providers
+## Version
 
-Edit `/config/secrets.yaml` on the HA device:
-
-```yaml
-active_llm_provider: "gemini"          # openai | gemini | anthropic | openrouter
-active_llm_model: "gemini-2.5-pro"
-gemini_api_key: "AIza..."
-```
-
-Restart the AppDaemon add-on to apply. No Python code changes needed.
+**1.3.1**
 
 ---
 
-## Available Crews
+## License
 
-| Crew | Trigger value | Description |
-|---|---|---|
-| Code Review | `code_review` | Developer writes code → Reviewer critiques → DevOps commits to GitHub |
-| HA Automation | `ha_automation` | NL prompt → HA automation YAML → GitHub commit |
-| HA Assistant | `ha_assistant` | Survey HA sensors → suggest automations → commit top pick |
-
-### HA Automation crew options
-
-```json
-{
-  "crew": "ha_automation",
-  "prompt": "Turn off all lights when everyone leaves home",
-  "options": {
-    "entities_to_read": ["person.john", "light.living_room"]
-  }
-}
-```
-
-### HA Assistant crew options
-
-```json
-{
-  "crew": "ha_assistant",
-  "prompt": "Suggest energy-saving automations",
-  "options": {
-    "entities_to_survey": [
-      "sensor.living_room_temperature",
-      "switch.living_room_ac",
-      "binary_sensor.motion_living_room"
-    ]
-  }
-}
-```
-
----
-
-## REST API Reference
-
-All endpoints are at `http://homeassistant.local:5050/api/appdaemon/ai_hub/`
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/trigger` | POST | Start a crew run |
-| `/status` | GET | Current status and active crew |
-| `/result` | GET | Last result and error |
-| `/ws?job_id=*` | WebSocket | Real-time status/result push |
-
----
-
-## File Structure
-
-```
-Agent Hub HA/
-├── README.md
-├── development plan.md
-├── plans/
-│   └── architecture.md          ← Full architecture specification
-├── appdaemon/
-│   ├── appdaemon.yaml           ← Deploy to /config/appdaemon/appdaemon.yaml
-│   └── apps/
-│       └── ai_hub/
-│           ├── apps.yaml        ← Deploy to /config/appdaemon/apps/ai_hub/apps.yaml
-│           ├── main.py          ← AIHubOrchestrator
-│           ├── llm_factory.py   ← LLM provider factory
-│           ├── crew_router.py   ← Runtime crew selector
-│           ├── agents.py        ← Agent definitions
-│           ├── tasks.py         ← Task definitions
-│           ├── tools.py         ← GitHubCommitTool + HASensorReaderTool
-│           ├── crews/
-│           │   ├── __init__.py
-│           │   ├── code_review_crew.py
-│           │   ├── ha_automation_crew.py
-│           │   └── ha_assistant_crew.py
-│           └── frontend/        ← React/Vite/Tailwind frontend
-│               ├── package.json
-│               ├── vite.config.ts
-│               ├── tailwind.config.ts
-│               ├── index.html
-│               └── src/
-│                   ├── main.tsx
-│                   ├── App.tsx
-│                   ├── api/aiHubClient.ts
-│                   ├── hooks/useCrewStatus.ts
-│                   └── components/
-│                       ├── CrewSelector.tsx
-│                       ├── PromptInput.tsx
-│                       ├── StatusBadge.tsx
-│                       ├── StatusFeed.tsx
-│                       └── ResultPanel.tsx
-└── ha_config/
-    ├── secrets.yaml.template    ← Copy entries to /config/secrets.yaml
-    ├── ai_hub_entities.yaml     ← HA helper entities
-    └── automations.yaml         ← HA automations for button triggers
-```
-
----
-
-## Troubleshooting
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| `LLM factory error: API key missing` | Placeholder key in secrets.yaml | Set real API key for `active_llm_provider` |
-| `Unknown crew: 'xyz'` | Invalid crew name in trigger | Use `code_review`, `ha_automation`, or `ha_assistant` |
-| `GitHub authentication failed` | Invalid PAT | Regenerate PAT with `Contents: read & write` scope |
-| `Entity 'xyz' not found` | Wrong entity ID | Check entity ID in HA Developer Tools → States |
-| Frontend shows blank page | `dist/` not copied | Run `npm run build` and copy `dist/` to HA device |
-| AppDaemon won't start | Missing python package | Check AppDaemon add-on logs; verify `python_packages` in `appdaemon.yaml` |
+MIT

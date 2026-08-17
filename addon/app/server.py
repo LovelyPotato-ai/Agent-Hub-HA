@@ -3,12 +3,9 @@ server.py — AI Hub Standalone aiohttp Server
 =============================================
 Main entry point for the custom HA add-on.
 
-Replaces AppDaemon's built-in HTTP server. Runs as the main process,
-started by run.sh.
-
 Responsibilities:
   - Start the HAClient (connects to HA Supervisor WebSocket)
-  - Start the AIHubOrchestrator (subscribes to HA events)
+  - Start the AIHubOrchestrator (seeds defaults, inits LLM + tools)
   - Serve the React frontend as static files at /
   - Expose REST + WebSocket API endpoints at /api/
   - Handle graceful shutdown on SIGTERM/SIGINT
@@ -49,67 +46,33 @@ FRONTEND_DIST = Path(__file__).parent / "frontend" / "dist"
 
 
 # ---------------------------------------------------------------------------
-# Application factory
+# CORS middleware
 # ---------------------------------------------------------------------------
 
 @web.middleware
 async def _cors_middleware(request: web.Request, handler):
     """Allow all origins — needed for local dev (npm run dev proxy)."""
+    # Handle CORS preflight before routing so OPTIONS never hits a 405.
+    if request.method == "OPTIONS":
+        return web.Response(
+            status=204,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Max-Age": "86400",
+            },
+        )
     response = await handler(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     return response
 
 
-def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
-    """
-    Build the aiohttp Application with all routes registered.
-    """
-    # Middlewares must be passed at construction time — cannot be appended after.
-    app = web.Application(middlewares=[_cors_middleware])
-
-    # ── API routes ─────────────────────────────────────────────────────
-    app.router.add_post("/api/trigger",          orchestrator.http_trigger)
-    app.router.add_get("/api/status",            orchestrator.http_status)
-    app.router.add_get("/api/result",            orchestrator.http_result)
-    app.router.add_get("/api/ws",                orchestrator.http_ws)
-    app.router.add_get("/api/settings",          orchestrator.http_settings_get)
-    app.router.add_post("/api/settings/save",    orchestrator.http_settings_post)
-    app.router.add_get("/api/settings/metadata", orchestrator.http_settings_metadata)
-
-    # ── Health check ───────────────────────────────────────────────────
-    app.router.add_get("/api/health", _health_check)
-
-    # ── Static frontend files ──────────────────────────────────────────
-    if FRONTEND_DIST.exists():
-        # Serve index.html for root and any non-API path (SPA catch-all)
-        # HA Ingress strips the path prefix before forwarding, so the addon
-        # always receives requests starting from /.
-        app.router.add_get("/", _serve_index)
-        # Serve built assets (JS, CSS chunks)
-        app.router.add_static("/assets", FRONTEND_DIST / "assets", name="assets")
-        # Catch-all: serve index.html for any other GET (SPA client-side routing)
-        app.router.add_route("GET", "/{path_info:.*}", _serve_index)
-        logger.info("Serving frontend from %s", FRONTEND_DIST)
-    else:
-        app.router.add_get("/", _no_frontend)
-        app.router.add_route("GET", "/{path_info:.*}", _no_frontend)
-        logger.warning(
-            "Frontend dist/ not found at %s. "
-            "Run 'npm run build' in the frontend/ directory and copy dist/ here.",
-            FRONTEND_DIST,
-        )
-
-    return app
-
-
-async def _health_check(request: web.Request) -> web.Response:
-    return web.Response(
-        text=json.dumps({"status": "ok", "service": "ai_hub"}),
-        content_type="application/json",
-    )
-
+# ---------------------------------------------------------------------------
+# Static file handlers
+# ---------------------------------------------------------------------------
 
 async def _serve_index(request: web.Request) -> web.FileResponse:
     return web.FileResponse(FRONTEND_DIST / "index.html")
@@ -124,6 +87,75 @@ async def _no_frontend(request: web.Request) -> web.Response:
         }),
         content_type="application/json",
     )
+
+
+async def _health_check(request: web.Request) -> web.Response:
+    return web.Response(
+        text=json.dumps({"status": "ok", "service": "ai_hub"}),
+        content_type="application/json",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Application factory
+# ---------------------------------------------------------------------------
+
+def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
+    """Build the aiohttp Application with all routes registered."""
+    app = web.Application(middlewares=[_cors_middleware])
+
+    # ── Health check ───────────────────────────────────────────────────
+    app.router.add_get("/api/health", _health_check)
+
+    # ── Agent CRUD ─────────────────────────────────────────────────────
+    app.router.add_get("/api/agents",          orchestrator.http_agents_list)
+    app.router.add_post("/api/agents",         orchestrator.http_agents_create)
+    app.router.add_get("/api/agents/{id}",     orchestrator.http_agents_get)
+    app.router.add_put("/api/agents/{id}",     orchestrator.http_agents_update)
+    app.router.add_delete("/api/agents/{id}",  orchestrator.http_agents_delete)
+
+    # ── Workflow CRUD ──────────────────────────────────────────────────
+    app.router.add_get("/api/workflows",           orchestrator.http_workflows_list)
+    app.router.add_post("/api/workflows",          orchestrator.http_workflows_create)
+    app.router.add_get("/api/workflows/{id}",      orchestrator.http_workflows_get)
+    app.router.add_put("/api/workflows/{id}",      orchestrator.http_workflows_update)
+    app.router.add_delete("/api/workflows/{id}",   orchestrator.http_workflows_delete)
+
+    # ── Tools ──────────────────────────────────────────────────────────
+    app.router.add_get("/api/tools", orchestrator.http_tools_list)
+
+    # ── Run endpoints ──────────────────────────────────────────────────
+    app.router.add_post("/api/run/workflow/{id}", orchestrator.http_run_workflow)
+    app.router.add_post("/api/run/agent/{id}",    orchestrator.http_run_agent)
+
+    # ── Legacy / status / WebSocket ────────────────────────────────────
+    app.router.add_post("/api/trigger",           orchestrator.http_trigger)
+    app.router.add_get("/api/status",             orchestrator.http_status)
+    app.router.add_get("/api/result",             orchestrator.http_result)
+    app.router.add_get("/api/ws",                 orchestrator.http_ws)
+
+    # ── Settings ───────────────────────────────────────────────────────
+    app.router.add_get("/api/settings",           orchestrator.http_settings_get)
+    app.router.add_post("/api/settings/save",     orchestrator.http_settings_post)
+    app.router.add_get("/api/settings/metadata",  orchestrator.http_settings_metadata)
+
+    # ── Static frontend files ──────────────────────────────────────────
+    if FRONTEND_DIST.exists():
+        app.router.add_get("/", _serve_index)
+        app.router.add_static("/assets", FRONTEND_DIST / "assets", name="assets")
+        # Catch-all: serve index.html for any non-API GET (SPA routing + HA Ingress)
+        app.router.add_route("GET", "/{path_info:.*}", _serve_index)
+        logger.info("Serving frontend from %s", FRONTEND_DIST)
+    else:
+        app.router.add_get("/", _no_frontend)
+        app.router.add_route("GET", "/{path_info:.*}", _no_frontend)
+        logger.warning(
+            "Frontend dist/ not found at %s. "
+            "Run 'npm run build' in the frontend/ directory.",
+            FRONTEND_DIST,
+        )
+
+    return app
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +203,7 @@ async def main() -> None:
     await stop_event.wait()
 
     logger.info("Shutting down AI Hub...")
+    await orchestrator.stop()
     await runner.cleanup()
     if ha_client:
         await ha_client.close()
