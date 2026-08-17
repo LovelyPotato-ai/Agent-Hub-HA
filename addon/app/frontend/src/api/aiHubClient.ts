@@ -171,6 +171,34 @@ export const updateWorkflow  = (id: string, data: WorkflowUpdate) => apiFetch<Wo
 export const deleteWorkflow  = (id: string)                    => apiFetch<{ status: string }>(`/workflows/${id}`, { method: 'DELETE' })
 
 // ---------------------------------------------------------------------------
+// Provider types
+// ---------------------------------------------------------------------------
+
+export interface ProviderDef {
+  id: string
+  name: string
+  type: 'openai' | 'openai_compatible' | 'gemini' | 'anthropic'
+  base_url: string
+  api_key_field: string
+  models: string[]
+  builtin: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type ProviderCreate = Omit<ProviderDef, 'id' | 'builtin' | 'created_at' | 'updated_at'>
+export type ProviderUpdate = Partial<ProviderCreate>
+
+// ---------------------------------------------------------------------------
+// Provider API
+// ---------------------------------------------------------------------------
+
+export const listProviders   = ()                                 => apiFetch<ProviderDef[]>('/providers')
+export const createProvider  = (data: ProviderCreate)             => apiFetch<ProviderDef>('/providers', { method: 'POST', body: JSON.stringify(data) })
+export const updateProvider  = (id: string, data: ProviderUpdate) => apiFetch<ProviderDef>(`/providers/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteProvider  = (id: string)                       => apiFetch<{ status: string }>(`/providers/${id}`, { method: 'DELETE' })
+
+// ---------------------------------------------------------------------------
 // Tools API
 // ---------------------------------------------------------------------------
 

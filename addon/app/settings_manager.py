@@ -45,43 +45,6 @@ AGENT_ROLES = {
     "ha_applier":    "HA Applier Agent (commits automations)",
 }
 
-# Supported providers and their model lists
-PROVIDER_MODELS: dict[str, list[str]] = {
-    "openai": [
-        "gpt-4o",
-        "gpt-4o-mini",
-        "gpt-4.1",
-        "gpt-4.1-mini",
-        "gpt-4-turbo",
-        "o1",
-        "o1-mini",
-        "o3-mini",
-    ],
-    "gemini": [
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-pro",
-        "gemini-1.5-flash",
-    ],
-    "anthropic": [
-        "claude-opus-4-5",
-        "claude-sonnet-4-5",
-        "claude-haiku-4-5",
-        "claude-opus-4",
-        "claude-sonnet-4",
-        "claude-3-5-sonnet-20241022",
-    ],
-    "openrouter": [
-        "openai/gpt-4o",
-        "anthropic/claude-3.5-sonnet",
-        "google/gemini-2.5-pro",
-        "meta-llama/llama-3.1-405b-instruct",
-        "mistralai/mistral-large",
-        "custom",
-    ],
-}
-
 # ---------------------------------------------------------------------------
 # Default options structure
 # ---------------------------------------------------------------------------
@@ -150,7 +113,10 @@ def load_settings() -> dict[str, Any]:
     Returns a dict safe to send to the frontend:
       - API keys are replaced with boolean 'keys_configured' flags
       - Per-agent overrides are included
+      - Custom provider API keys are included in keys_configured
     """
+    from provider_registry import list_providers
+
     options = _read_options()
 
     # Ensure agent_overrides exists
@@ -159,6 +125,21 @@ def load_settings() -> dict[str, Any]:
             agent: {"provider": "", "model": ""} for agent in AGENT_ROLES
         }
 
+    # Build keys_configured from built-in + custom providers
+    keys_configured: dict[str, bool] = {
+        "openai":     _key_is_configured(options.get("openai_api_key", "")),
+        "gemini":     _key_is_configured(options.get("gemini_api_key", "")),
+        "anthropic":  _key_is_configured(options.get("anthropic_api_key", "")),
+        "openrouter": _key_is_configured(options.get("openrouter_api_key", "")),
+        "github_pat": _key_is_configured(options.get("github_pat", "")),
+    }
+    # Add custom provider keys
+    for provider in list_providers():
+        if not provider.get("builtin"):
+            field = provider.get("api_key_field", "")
+            if field:
+                keys_configured[field] = _key_is_configured(options.get(field, ""))
+
     return {
         "active_llm_provider": options.get("active_llm_provider", "openai"),
         "active_llm_model":    options.get("active_llm_model", "gpt-4o"),
@@ -166,13 +147,7 @@ def load_settings() -> dict[str, Any]:
         "github_repo_owner":   options.get("github_repo_owner", ""),
         "github_repo_name":    options.get("github_repo_name", ""),
         "agent_overrides":     options.get("agent_overrides", {}),
-        "keys_configured": {
-            "openai":     _key_is_configured(options.get("openai_api_key", "")),
-            "gemini":     _key_is_configured(options.get("gemini_api_key", "")),
-            "anthropic":  _key_is_configured(options.get("anthropic_api_key", "")),
-            "openrouter": _key_is_configured(options.get("openrouter_api_key", "")),
-            "github_pat": _key_is_configured(options.get("github_pat", "")),
-        },
+        "keys_configured":     keys_configured,
     }
 
 
@@ -213,6 +188,9 @@ def save_settings(payload: dict[str, Any]) -> dict[str, str]:
                     }
 
         # ── API keys (only write non-empty, non-masked values) ─────────
+        from provider_registry import list_providers
+
+        # Built-in keys
         key_fields = {
             "openai_api_key":     payload.get("openai_api_key", ""),
             "gemini_api_key":     payload.get("gemini_api_key", ""),
@@ -220,6 +198,13 @@ def save_settings(payload: dict[str, Any]) -> dict[str, str]:
             "openrouter_api_key": payload.get("openrouter_api_key", ""),
             "github_pat":         payload.get("github_pat", ""),
         }
+        # Custom provider keys
+        for provider in list_providers():
+            if not provider.get("builtin"):
+                field = provider.get("api_key_field", "")
+                if field and field in payload:
+                    key_fields[field] = payload[field]
+
         for key, value in key_fields.items():
             if value and value.strip() and not value.startswith("•"):
                 options[key] = value.strip()
@@ -244,8 +229,15 @@ def save_settings(payload: dict[str, Any]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def get_metadata() -> dict[str, Any]:
-    """Return static metadata the frontend needs to render the settings UI."""
+    """Return metadata the frontend needs to render the settings UI."""
+    from provider_registry import list_providers
+
+    providers = list_providers()
+    provider_models: dict[str, list[str]] = {}
+    for p in providers:
+        provider_models[p["id"]] = p.get("models", [])
+
     return {
         "agent_roles":    AGENT_ROLES,
-        "provider_models": PROVIDER_MODELS,
+        "provider_models": provider_models,
     }

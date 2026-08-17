@@ -121,6 +121,12 @@ def build_app(orchestrator: AIHubOrchestrator) -> web.Application:
     app.router.add_put("/api/workflows/{id}",      orchestrator.http_workflows_update)
     app.router.add_delete("/api/workflows/{id}",   orchestrator.http_workflows_delete)
 
+    # ── Providers ──────────────────────────────────────────────────────
+    app.router.add_get("/api/providers",          orchestrator.http_providers_list)
+    app.router.add_post("/api/providers",         orchestrator.http_providers_create)
+    app.router.add_put("/api/providers/{id}",     orchestrator.http_providers_update)
+    app.router.add_delete("/api/providers/{id}",  orchestrator.http_providers_delete)
+
     # ── Tools ──────────────────────────────────────────────────────────
     app.router.add_get("/api/tools", orchestrator.http_tools_list)
 

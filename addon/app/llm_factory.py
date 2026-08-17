@@ -64,12 +64,6 @@ def get_llm(
     """
     provider = provider.strip().lower()
 
-    if provider not in SUPPORTED_PROVIDERS:
-        raise ValueError(
-            f"Unsupported LLM provider: '{provider}'. "
-            f"Choose from: {sorted(SUPPORTED_PROVIDERS)}"
-        )
-
     if not api_key or api_key.startswith("REPLACE_WITH"):
         raise ValueError(
             f"API key for provider '{provider}' is missing. "
@@ -92,6 +86,64 @@ def get_llm(
 
     # Should never reach here due to the guard above, but satisfies type checkers
     raise ValueError(f"Unhandled provider: {provider}")
+
+
+def get_llm_from_provider_def(
+    provider_def: dict[str, Any],
+    model: str,
+    api_key: str,
+    temperature: float = DEFAULT_TEMPERATURE,
+    timeout: int = DEFAULT_TIMEOUT,
+    **kwargs: Any,
+) -> Any:
+    """
+    Build a LangChain chat model from a dynamic provider definition.
+
+    This is the preferred entry point for the dynamic provider system.
+    It supports all provider types including custom openai_compatible providers.
+
+    Args:
+        provider_def: Provider definition dict from provider_registry.
+        model:        Model slug to use.
+        api_key:      API key for this provider.
+        temperature:  Sampling temperature.
+        timeout:      HTTP request timeout in seconds.
+        **kwargs:     Extra kwargs forwarded to the LangChain class.
+
+    Returns:
+        A LangChain BaseChatModel instance.
+
+    Raises:
+        ValueError: If provider type is unsupported or api_key is empty.
+        ImportError: If the required LangChain package is not installed.
+    """
+    ptype = provider_def.get("type", "openai")
+    base_url = provider_def.get("base_url", "")
+
+    if not api_key or api_key.startswith("REPLACE_WITH"):
+        raise ValueError(
+            f"API key for provider '{provider_def.get('name', ptype)}' is missing. "
+            f"Set it in the add-on Configuration tab in Home Assistant."
+        )
+
+    logger.info(
+        "Building LLM from provider def: type=%s, model=%s, base_url=%s",
+        ptype, model, base_url or "(default)",
+    )
+
+    if ptype == "openai":
+        return _build_openai(model, api_key, temperature, timeout, **kwargs)
+
+    if ptype == "openai_compatible":
+        return _build_openai_compatible(model, api_key, base_url, temperature, timeout, **kwargs)
+
+    if ptype == "gemini":
+        return _build_gemini(model, api_key, temperature, timeout, **kwargs)
+
+    if ptype == "anthropic":
+        return _build_anthropic(model, api_key, temperature, timeout, **kwargs)
+
+    raise ValueError(f"Unsupported provider type: '{ptype}'")
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +195,44 @@ def _build_gemini(
     return ChatGoogleGenerativeAI(
         model=model,
         google_api_key=api_key,
+        temperature=temperature,
+        request_timeout=timeout,
+        max_retries=3,
+        **kwargs,
+    )
+
+
+def _build_openai_compatible(
+    model: str,
+    api_key: str,
+    base_url: str,
+    temperature: float,
+    timeout: int,
+    **kwargs: Any,
+) -> Any:
+    """
+    Build a ChatOpenAI instance pointed at a custom OpenAI-compatible API.
+
+    Supports any API that implements the OpenAI chat completions endpoint:
+      - Ollama (http://localhost:11434/v1)
+      - LM Studio (http://localhost:1234/v1)
+      - vLLM, Together AI, Groq, etc.
+    """
+    try:
+        from langchain_openai import ChatOpenAI
+    except ImportError as exc:
+        raise ImportError(
+            "langchain-openai is not installed. "
+            "Add it to python_packages in appdaemon.yaml."
+        ) from exc
+
+    if not base_url:
+        raise ValueError("base_url is required for openai_compatible providers")
+
+    return ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
         temperature=temperature,
         request_timeout=timeout,
         max_retries=3,

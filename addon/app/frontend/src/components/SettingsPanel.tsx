@@ -20,6 +20,7 @@ import {
   type SettingsMetadata,
   type SettingsResponse,
 } from '../api/aiHubClient'
+import { ProvidersSection } from './ProvidersSection'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -210,6 +211,11 @@ export const SettingsPanel: FC = () => {
           <span>{saveResult.message}</span>
         </div>
       )}
+
+      {/* ── Providers ──────────────────────────────────────────────── */}
+      <Section title="LLM Providers">
+        <ProvidersSection />
+      </Section>
 
       {/* ── Global LLM ─────────────────────────────────────────────── */}
       <Section title="Global LLM Provider">

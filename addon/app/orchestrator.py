@@ -18,6 +18,11 @@ HTTP API:
   PUT  /api/workflows/{id}      — update workflow
   DEL  /api/workflows/{id}      — delete workflow
 
+  GET  /api/providers           — list providers
+  POST /api/providers           — create provider
+  PUT  /api/providers/{id}      — update provider
+  DEL  /api/providers/{id}      — delete provider
+
   GET  /api/tools               — list available tools
 
   POST /api/run/workflow/{id}   — run a workflow
@@ -53,7 +58,10 @@ from agent_registry import (
 )
 from crew_executor import CrewExecutor
 from ha_client import HAClient
-from llm_factory import get_llm
+from llm_factory import get_llm, get_llm_from_provider_def
+from provider_registry import (
+    create_provider, delete_provider, get_provider, list_providers, update_provider,
+)
 from seed_defaults import seed
 from settings_manager import get_metadata, load_settings, save_settings
 from tool_factory import ToolFactory
@@ -143,23 +151,36 @@ class AIHubOrchestrator:
             logger.error("Failed to seed defaults: %s", exc)
 
         # ── LLM factory ────────────────────────────────────────────────
-        provider = os.environ.get("AI_HUB_LLM_PROVIDER", "openai")
+        provider_id = os.environ.get("AI_HUB_LLM_PROVIDER", "openai")
         model    = os.environ.get("AI_HUB_LLM_MODEL", "gpt-4o")
-        api_keys = {
-            "openai":     os.environ.get("AI_HUB_OPENAI_KEY", ""),
-            "gemini":     os.environ.get("AI_HUB_GEMINI_KEY", ""),
-            "anthropic":  os.environ.get("AI_HUB_ANTHROPIC_KEY", ""),
-            "openrouter": os.environ.get("AI_HUB_OPENROUTER_KEY", ""),
-        }
 
         try:
-            self._llm = get_llm(
-                provider=provider,
-                model=model,
-                api_key=api_keys.get(provider, ""),
-            )
-            logger.info("LLM initialised: provider=%s, model=%s", provider, model)
-        except ValueError as exc:
+            # Resolve the provider definition from the registry.
+            # Falls back to get_llm() (legacy) if the provider is a built-in
+            # name that isn't in the registry for some reason.
+            provider_def = get_provider(provider_id)
+            if provider_def:
+                api_key = os.environ.get(provider_def.get("api_key_field", ""), "")
+                self._llm = get_llm_from_provider_def(
+                    provider_def=provider_def,
+                    model=model,
+                    api_key=api_key,
+                )
+            else:
+                # Legacy fallback for built-in providers
+                api_keys = {
+                    "openai":     os.environ.get("AI_HUB_OPENAI_KEY", ""),
+                    "gemini":     os.environ.get("AI_HUB_GEMINI_KEY", ""),
+                    "anthropic":  os.environ.get("AI_HUB_ANTHROPIC_KEY", ""),
+                    "openrouter": os.environ.get("AI_HUB_OPENROUTER_KEY", ""),
+                }
+                self._llm = get_llm(
+                    provider=provider_id,
+                    model=model,
+                    api_key=api_keys.get(provider_id, ""),
+                )
+            logger.info("LLM initialised: provider=%s, model=%s", provider_id, model)
+        except (ValueError, ImportError) as exc:
             logger.error("LLM factory error: %s", exc)
             self._last_error = str(exc)
             self._current_status = "error"
@@ -450,6 +471,47 @@ class AIHubOrchestrator:
         workflow_id = request.match_info["id"]
         if not delete_workflow(workflow_id):
             return _json_err(f"Workflow '{workflow_id}' not found", status=404)
+        return _json_ok({"status": "deleted"})
+
+    # ==================================================================
+    # HTTP Handlers — Providers
+    # ==================================================================
+
+    async def http_providers_list(self, request: web.Request) -> web.Response:
+        """GET /api/providers"""
+        return _json_ok(list_providers())
+
+    async def http_providers_create(self, request: web.Request) -> web.Response:
+        """POST /api/providers"""
+        try:
+            body = await request.json()
+        except Exception:
+            return _json_err("Invalid JSON body")
+        try:
+            provider = create_provider(body)
+            return _json_ok(provider, status=201)
+        except ValueError as exc:
+            return _json_err(str(exc))
+
+    async def http_providers_update(self, request: web.Request) -> web.Response:
+        """PUT /api/providers/{id}"""
+        provider_id = request.match_info["id"]
+        try:
+            body = await request.json()
+        except Exception:
+            return _json_err("Invalid JSON body")
+        provider = update_provider(provider_id, body)
+        if not provider:
+            return _json_err(f"Provider '{provider_id}' not found", status=404)
+        return _json_ok(provider)
+
+    async def http_providers_delete(self, request: web.Request) -> web.Response:
+        """DELETE /api/providers/{id}"""
+        provider_id = request.match_info["id"]
+        if not delete_provider(provider_id):
+            return _json_err(
+                f"Provider '{provider_id}' not found or is built-in", status=404
+            )
         return _json_ok({"status": "deleted"})
 
     # ==================================================================

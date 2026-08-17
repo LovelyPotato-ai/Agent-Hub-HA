@@ -28,7 +28,7 @@ from typing import Any
 from crewai import Agent, Crew, Process, Task
 
 from agent_registry import get_agent
-from llm_factory import get_llm
+from llm_factory import get_llm, get_llm_from_provider_def
 from tool_factory import ToolFactory
 from workflow_registry import get_workflow
 
@@ -48,13 +48,24 @@ def _resolve_llm(llm_override: dict[str, Any] | None, default_llm: Any) -> Any:
         return default_llm
     provider = llm_override.get("provider", "openai")
     model = llm_override.get("model", "gpt-4o")
-    api_keys = {
-        "openai":     os.environ.get("AI_HUB_OPENAI_KEY", ""),
-        "gemini":     os.environ.get("AI_HUB_GEMINI_KEY", ""),
-        "anthropic":  os.environ.get("AI_HUB_ANTHROPIC_KEY", ""),
-        "openrouter": os.environ.get("AI_HUB_OPENROUTER_KEY", ""),
-    }
     try:
+        # Resolve via provider registry (supports custom providers)
+        from provider_registry import get_provider
+        provider_def = get_provider(provider)
+        if provider_def:
+            api_key = os.environ.get(provider_def.get("api_key_field", ""), "")
+            return get_llm_from_provider_def(
+                provider_def=provider_def,
+                model=model,
+                api_key=api_key,
+            )
+        # Legacy fallback
+        api_keys = {
+            "openai":     os.environ.get("AI_HUB_OPENAI_KEY", ""),
+            "gemini":     os.environ.get("AI_HUB_GEMINI_KEY", ""),
+            "anthropic":  os.environ.get("AI_HUB_ANTHROPIC_KEY", ""),
+            "openrouter": os.environ.get("AI_HUB_OPENROUTER_KEY", ""),
+        }
         return get_llm(
             provider=provider,
             model=model,
