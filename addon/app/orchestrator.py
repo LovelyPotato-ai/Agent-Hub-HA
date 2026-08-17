@@ -22,6 +22,7 @@ HTTP API:
   POST /api/providers           — create provider
   PUT  /api/providers/{id}      — update provider
   DEL  /api/providers/{id}      — delete provider
+  POST /api/providers/{id}/fetch-models — fetch live models from provider
 
   GET  /api/tools               — list available tools
 
@@ -63,7 +64,7 @@ from provider_registry import (
     create_provider, delete_provider, get_provider, list_providers, update_provider,
 )
 from seed_defaults import seed
-from settings_manager import get_metadata, load_settings, save_settings
+from settings_manager import _read_options, get_metadata, load_settings, save_settings
 from tool_factory import ToolFactory
 from workflow_registry import (
     create_workflow, delete_workflow, get_workflow, list_workflows, update_workflow,
@@ -99,6 +100,59 @@ def _json_err(message: str, status: int = 400) -> web.Response:
         text=json.dumps({"error": message}),
         content_type="application/json",
     )
+
+
+async def _fetch_models_for_provider(provider_def: dict[str, Any], api_key: str) -> list[str]:
+    """Query the provider's model-listing API and return a list of model IDs."""
+    ptype = provider_def.get("type", "")
+
+    if ptype == "openai":
+        url = "https://api.openai.com/v1/models"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise RuntimeError(f"OpenAI models API returned {resp.status}: {text[:200]}")
+                data = await resp.json()
+        ids = [m.get("id", "") for m in data.get("data", [])]
+        chat_models = [mid for mid in ids if any(k in mid for k in ("gpt", "o1", "o3", "o4"))]
+        return sorted(chat_models)
+
+    if ptype == "openai_compatible":
+        base_url = provider_def.get("base_url", "").rstrip("/")
+        url = f"{base_url}/models"
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise RuntimeError(f"Models API returned {resp.status}: {text[:200]}")
+                data = await resp.json()
+        return [m.get("id", "") for m in data.get("data", []) if m.get("id")]
+
+    if ptype == "gemini":
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise RuntimeError(f"Gemini models API returned {resp.status}: {text[:200]}")
+                data = await resp.json()
+        models: list[str] = []
+        for m in data.get("models", []):
+            if "generateContent" in m.get("supportedGenerationMethods", []):
+                models.append(m.get("name", "").replace("models/", "", 1))
+        return sorted(models)
+
+    if ptype == "anthropic":
+        return [
+            "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5",
+            "claude-opus-4", "claude-sonnet-4",
+            "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
+        ]
+
+    raise RuntimeError(f"Unknown provider type '{ptype}'")
 
 
 class AIHubOrchestrator:
@@ -513,6 +567,23 @@ class AIHubOrchestrator:
                 f"Provider '{provider_id}' not found or is built-in", status=404
             )
         return _json_ok({"status": "deleted"})
+
+    async def http_providers_fetch_models(self, request: web.Request) -> web.Response:
+        """POST /api/providers/{id}/fetch-models — query provider's models API"""
+        provider_id = request.match_info["id"]
+        provider = get_provider(provider_id)
+        if not provider:
+            return _json_err(f"Provider '{provider_id}' not found", status=404)
+
+        # Get the API key from options.json
+        options = _read_options()
+        api_key = options.get(provider.get("api_key_field", ""), "")
+
+        try:
+            models = await _fetch_models_for_provider(provider, api_key)
+            return _json_ok({"models": models})
+        except Exception as exc:
+            return _json_err(str(exc), status=500)
 
     # ==================================================================
     # HTTP Handlers — Tools

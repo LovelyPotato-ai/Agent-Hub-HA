@@ -4,7 +4,6 @@
  * Allows editing:
  *   - Global LLM provider + model
  *   - Per-agent provider + model overrides
- *   - API keys (write-only — displayed as masked dots if already set)
  *   - GitHub config (repo owner, repo name, branch, PAT)
  *
  * On save, calls POST /api/settings/save.
@@ -25,21 +24,6 @@ import { ProvidersSection } from './ProvidersSection'
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface KeyField {
-  key: string
-  label: string
-  placeholder: string
-  provider?: string // if set, only show when this provider is active
-}
-
-const KEY_FIELDS: KeyField[] = [
-  { key: 'openai_api_key',     label: 'OpenAI API Key',     placeholder: 'sk-...',        provider: 'openai' },
-  { key: 'gemini_api_key',     label: 'Gemini API Key',     placeholder: 'AIza...',       provider: 'gemini' },
-  { key: 'anthropic_api_key',  label: 'Anthropic API Key',  placeholder: 'sk-ant-...',    provider: 'anthropic' },
-  { key: 'openrouter_api_key', label: 'OpenRouter API Key', placeholder: 'sk-or-...',     provider: 'openrouter' },
-  { key: 'github_pat',         label: 'GitHub PAT',         placeholder: 'ghp_...' },
-]
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -106,7 +90,7 @@ const Select: FC<SelectProps> = ({ value, onChange, options, disabled, allowCust
 export const SettingsPanel: FC = () => {
   const [settings, setSettings] = useState<SettingsResponse | null>(null)
   const [metadata, setMetadata] = useState<SettingsMetadata | null>(null)
-  const [keyValues, setKeyValues] = useState<Record<string, string>>({})
+  const [githubPat, setGithubPat] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveResult, setSaveResult] = useState<{ status: 'ok' | 'error'; message: string } | null>(null)
@@ -157,12 +141,12 @@ export const SettingsPanel: FC = () => {
         github_repo_owner: settings.github_repo_owner,
         github_repo_name: settings.github_repo_name,
         agent_overrides: settings.agent_overrides,
-        ...keyValues,
+        github_pat: githubPat,
       }
       const result = await saveSettings(payload)
       setSaveResult(result)
       if (result.status === 'ok') {
-        setKeyValues({}) // clear key fields after successful save
+        setGithubPat('') // clear the PAT field after successful save
         await load()     // reload to get updated key_configured flags
       }
     } catch (err) {
@@ -303,42 +287,24 @@ export const SettingsPanel: FC = () => {
             className="w-40 rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text focus:outline-none focus:ring-2 focus:ring-ha-blue"
           />
         </Field>
-      </Section>
-
-      {/* ── API Keys ────────────────────────────────────────────────── */}
-      <Section title="API Keys">
-        <p className="text-xs text-ha-muted -mt-2">
-          Keys are stored securely by the add-on.
-          Leave a field blank to keep the existing value. A green dot means the key is already configured.
-        </p>
-        <div className="flex flex-col gap-3">
-          {KEY_FIELDS.map(field => {
-            const isConfigured = settings.keys_configured[
-              field.provider ?? field.key.replace('_api_key', '').replace('github_pat', 'github_pat')
-            ] ?? false
-            const currentValue = keyValues[field.key] ?? ''
-            return (
-              <Field
-                key={field.key}
-                label={
-                  <span className="flex items-center gap-2">
-                    {field.label}
-                    <span className={`w-2 h-2 rounded-full inline-block ${isConfigured ? 'bg-green-400' : 'bg-ha-border'}`} title={isConfigured ? 'Configured' : 'Not configured'} />
-                  </span>
-                }
-              >
-                <input
-                  type="password"
-                  value={currentValue}
-                  onChange={e => setKeyValues(prev => ({ ...prev, [field.key]: e.target.value }))}
-                  placeholder={isConfigured ? '••••••••••••••••' : field.placeholder}
-                  autoComplete="new-password"
-                  className="rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text font-mono focus:outline-none focus:ring-2 focus:ring-ha-blue"
-                />
-              </Field>
-            )
-          })}
-        </div>
+        <Field
+          label={
+            <span className="flex items-center gap-2">
+              GitHub PAT
+              <span className={`w-2 h-2 rounded-full inline-block ${settings.keys_configured.github_pat ? 'bg-green-400' : 'bg-ha-border'}`}
+                title={settings.keys_configured.github_pat ? 'Configured' : 'Not configured'} />
+            </span>
+          }
+        >
+          <input
+            type="password"
+            value={githubPat}
+            onChange={e => setGithubPat(e.target.value)}
+            placeholder={settings.keys_configured.github_pat ? '••••••••••••••••' : 'ghp_...'}
+            autoComplete="new-password"
+            className="rounded-lg border border-ha-border bg-ha-bg px-3 py-2 text-sm text-ha-text font-mono focus:outline-none focus:ring-2 focus:ring-ha-blue"
+          />
+        </Field>
       </Section>
 
       {/* ── Save button ─────────────────────────────────────────────── */}

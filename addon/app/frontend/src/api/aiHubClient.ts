@@ -197,6 +197,8 @@ export const listProviders   = ()                                 => apiFetch<Pr
 export const createProvider  = (data: ProviderCreate)             => apiFetch<ProviderDef>('/providers', { method: 'POST', body: JSON.stringify(data) })
 export const updateProvider  = (id: string, data: ProviderUpdate) => apiFetch<ProviderDef>(`/providers/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteProvider  = (id: string)                       => apiFetch<{ status: string }>(`/providers/${id}`, { method: 'DELETE' })
+export const fetchProviderModels = (id: string) =>
+  apiFetch<{ models: string[] }>(`/providers/${id}/fetch-models`, { method: 'POST' })
 
 // ---------------------------------------------------------------------------
 // Tools API
